@@ -7,7 +7,7 @@ export const MEMBERS: Member[] = [
   { id: "malu", name: "Maria Luíza", nickname: "Malu", email: null, spriteUrl: null, coupleGroup: 2, role: "adult" },
   { id: "grizante", name: "Ricardo Grizante", nickname: "Grizante", email: null, spriteUrl: null, coupleGroup: 2, role: "adult" },
   { id: "antonio", name: "Antônio", nickname: "Antônio", email: null, spriteUrl: null, coupleGroup: 2, role: "child" },
-  { id: "maiana", name: "Maiana", nickname: "Maiana", email: null, spriteUrl: null, coupleGroup: 3, role: "adult" },
+  { id: "maiana", name: "Maiana", nickname: "Maiana", email: "maiana.ds@gmail.com", spriteUrl: null, coupleGroup: 3, role: "adult" },
   { id: "rodrigo", name: "Rodrigo", nickname: "Rodrigo", email: "alf.rodrigo@gmail.com", spriteUrl: "/nenehome/sprites/rodrigo0.png", coupleGroup: 3, role: "adult" },
   { id: "sarah", name: "Sarah", nickname: "Sarah", email: null, spriteUrl: null, coupleGroup: 3, role: "child" },
   { id: "milena", name: "Milena", nickname: "Milena", email: null, spriteUrl: null, coupleGroup: 4, role: "adult" },
