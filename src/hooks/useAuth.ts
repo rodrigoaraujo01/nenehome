@@ -42,10 +42,13 @@ export function useAuth() {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await getSupabase().auth.signInWithPassword({
-      email,
-      password,
-    });
+    const timeout = new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error("Timeout: servidor não respondeu")), 10000)
+    );
+    const { data, error } = await Promise.race([
+      getSupabase().auth.signInWithPassword({ email, password }),
+      timeout,
+    ]);
     return error;
   };
 
