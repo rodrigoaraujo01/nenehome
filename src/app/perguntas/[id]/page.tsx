@@ -1,5 +1,8 @@
 "use client";
 
+// No paths are pre-rendered; the 404.html SPA trick handles direct navigation.
+export function generateStaticParams() { return []; }
+
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
