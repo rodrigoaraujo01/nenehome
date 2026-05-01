@@ -32,24 +32,28 @@ export function useAuth() {
 
     const {
       data: { subscription },
-    } = getSupabase().auth.onAuthStateChange(async (_event, session) => {
+    } = getSupabase().auth.onAuthStateChange((_event, session) => {
       const u = session?.user ?? null;
       setUser(u);
-      await syncProfile(u);
+      syncProfile(u);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const timeout = new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error("Timeout: servidor não respondeu")), 10000)
-    );
-    const { data, error } = await Promise.race([
-      getSupabase().auth.signInWithPassword({ email, password }),
-      timeout,
-    ]);
-    return error;
+    try {
+      const timeout = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("Timeout: servidor não respondeu")), 10000)
+      );
+      const { error } = await Promise.race([
+        getSupabase().auth.signInWithPassword({ email, password }),
+        timeout,
+      ]);
+      return error;
+    } catch (err) {
+      return err instanceof Error ? err : new Error("Erro desconhecido ao fazer login");
+    }
   };
 
   const signOut = async () => {
