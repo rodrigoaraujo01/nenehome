@@ -146,3 +146,86 @@ export interface VoteResult {
   status: "pending" | "approved" | "rejected";
   achievements?: UnlockedAchievement[];
 }
+
+// ─── Nenecoins ────────────────────────────────────────────────────────────────
+
+export interface NenecoinBalance {
+  nenecoin_balance: number;
+  firecoin_balance: number;
+  firecoin_popup_shown: boolean;
+}
+
+export interface WeeklyBonusResult {
+  bonus_received: number;
+  weeks: number;
+}
+
+export interface ConvertResult {
+  nenecoins_received?: number;
+  points_spent?: number;
+  error?: string;
+}
+
+export interface GiftResult {
+  success?: boolean;
+  amount?: number;
+  to?: string;
+  error?: string;
+}
+
+// ─── Bets ─────────────────────────────────────────────────────────────────────
+
+export interface BetOption {
+  id: string;
+  bet_id: string;
+  label: string;
+  position: number;
+}
+
+export interface BetEntry {
+  id: string;
+  bet_id: string;
+  user_id: string;
+  option_id: string | null;
+  guess_value: string | null;
+  coins_wagered: number;
+  is_winner: boolean | null;
+  coins_won: number;
+  created_at: string;
+  profiles?: { nickname: string; avatar_url: string | null };
+}
+
+export interface DbBet {
+  id: string;
+  creator_id: string;
+  title: string;
+  description: string | null;
+  type: "pool" | "closest_guess";
+  guess_kind: "date" | "number" | null;
+  unit: string | null;
+  deadline: string;
+  status: "open" | "resolved";
+  result_value: string | null;
+  resolved_at: string | null;
+  created_at: string;
+  // joined
+  creator?: { nickname: string; avatar_url: string | null };
+  options?: BetOption[];
+  entries?: BetEntry[];
+  // computed
+  total_pot?: number;
+  entries_count?: number;
+  my_entry?: BetEntry | null;
+}
+
+export interface PlaceBetResult {
+  entry_id?: string;
+  achievements?: UnlockedAchievement[];
+  error?: string;
+}
+
+export interface ResolveBetResult {
+  winners?: number;
+  pot?: number;
+  error?: string;
+}

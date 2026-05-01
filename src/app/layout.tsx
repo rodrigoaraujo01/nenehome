@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Space_Grotesk } from "next/font/google";
 import { BottomNav } from "@/components/BottomNav";
+import { NenecoinsInit } from "@/components/NenecoinsInit";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -41,6 +42,7 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col pb-20">
         {children}
         <BottomNav />
+        <NenecoinsInit />
       </body>
     </html>
   );
