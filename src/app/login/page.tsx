@@ -20,7 +20,7 @@ export default function LoginPage() {
 
     const err = await signIn(email, password);
     if (err) {
-      setError("Email ou senha incorretos");
+      setError(err.message);
       setLoading(false);
     } else {
       router.push("/");
