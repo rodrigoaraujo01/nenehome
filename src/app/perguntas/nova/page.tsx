@@ -95,10 +95,7 @@ export default function NovaPerguntaPage() {
     }
   }
 
-  // exclude self from subject picker
-  const subjectCandidates = profile
-    ? ADULTS.filter((m) => m.nickname !== profile.nickname)
-    : ADULTS;
+  const subjectCandidates = ADULTS;
 
   return (
     <>

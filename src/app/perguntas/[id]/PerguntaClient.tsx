@@ -232,7 +232,7 @@ export default function PerguntaPage() {
                 </p>
               )}
               <div className="flex flex-wrap gap-3">
-                {ADULTS.filter((m) => m.nickname !== profile.nickname).map(
+                {ADULTS.map(
                   (m) => {
                     const isSelected = selectedSubjectId === m.id;
                     const isCorrectMember =
