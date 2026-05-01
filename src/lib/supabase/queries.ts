@@ -232,7 +232,7 @@ export async function getProfileStats(nickname: string): Promise<ProfileStats | 
     answers_total: answers.length,
     answers_correct: correct,
     questions_created,
-    recent_answers: answers as ProfileStats["recent_answers"],
+    recent_answers: answers as unknown as ProfileStats["recent_answers"],
   };
 }
 
