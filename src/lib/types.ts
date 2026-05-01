@@ -93,3 +93,37 @@ export interface ProfileStats {
     } | null;
   }[];
 }
+
+// ─── Photo submissions ─────────────────────────────────────────────────────────
+
+export interface DbPhotoVote {
+  id: string;
+  submission_id: string;
+  voter_id: string;
+  approved: boolean;
+  created_at: string;
+}
+
+export interface DbPhotoSubmission {
+  id: string;
+  submitter_id: string;
+  caption: string | null;
+  photo_url: string;
+  storage_path: string;
+  status: "pending" | "approved" | "rejected";
+  points_reward: number;
+  votes_to_approve: number;
+  created_at: string;
+  // joined
+  submitter?: DbProfile;
+  votes?: DbPhotoVote[];
+  approve_count?: number;
+  reject_count?: number;
+  my_vote?: boolean | null;
+}
+
+export interface VoteResult {
+  approve_count: number;
+  reject_count: number;
+  status: "pending" | "approved" | "rejected";
+}

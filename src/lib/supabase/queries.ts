@@ -5,6 +5,8 @@ import type {
   LeaderboardEntry,
   AnswerResult,
   ProfileStats,
+  DbPhotoSubmission,
+  VoteResult,
 } from "@/lib/types";
 import { MEMBERS } from "@/lib/constants";
 
@@ -229,4 +231,117 @@ export async function getProfileStats(nickname: string): Promise<ProfileStats | 
     questions_created,
     recent_answers: answers as ProfileStats["recent_answers"],
   };
+}
+
+// ─── Photo submissions ────────────────────────────────────────────────────────
+
+export async function getPhotoSubmissions(
+  userId: string
+): Promise<DbPhotoSubmission[]> {
+  const sb = getSupabase();
+
+  const { data, error } = await sb
+    .from("photo_submissions")
+    .select(`
+      *,
+      submitter:profiles!submitter_id(id, nickname, avatar_url),
+      votes:photo_votes(id, voter_id, approved)
+    `)
+    .order("created_at", { ascending: false });
+
+  if (error || !data) return [];
+
+  return data.map((s) => {
+    const votes = (s.votes ?? []) as { voter_id: string; approved: boolean }[];
+    const myVoteObj = votes.find((v) => v.voter_id === userId);
+    return {
+      ...s,
+      approve_count: votes.filter((v) => v.approved).length,
+      reject_count: votes.filter((v) => !v.approved).length,
+      my_vote: myVoteObj ? myVoteObj.approved : null,
+    };
+  }) as DbPhotoSubmission[];
+}
+
+export async function getPhotoSubmission(
+  id: string,
+  userId: string
+): Promise<DbPhotoSubmission | null> {
+  const { data, error } = await getSupabase()
+    .from("photo_submissions")
+    .select(`
+      *,
+      submitter:profiles!submitter_id(id, nickname, avatar_url),
+      votes:photo_votes(id, voter_id, approved, profiles(nickname, avatar_url))
+    `)
+    .eq("id", id)
+    .single();
+
+  if (error || !data) return null;
+
+  const votes = (data.votes ?? []) as { voter_id: string; approved: boolean }[];
+  const myVoteObj = votes.find((v) => v.voter_id === userId);
+
+  return {
+    ...data,
+    approve_count: votes.filter((v) => v.approved).length,
+    reject_count: votes.filter((v) => !v.approved).length,
+    my_vote: myVoteObj ? myVoteObj.approved : null,
+  } as DbPhotoSubmission;
+}
+
+export async function createPhotoSubmission(params: {
+  file: File;
+  caption: string;
+  userId: string;
+}): Promise<string | null> {
+  const sb = getSupabase();
+  const ext = params.file.name.split(".").pop() ?? "jpg";
+  const path = `${params.userId}/${Date.now()}.${ext}`;
+
+  const { error: uploadError } = await sb.storage
+    .from("photo-submissions")
+    .upload(path, params.file, { contentType: params.file.type });
+
+  if (uploadError) {
+    console.error("Upload error:", uploadError);
+    return null;
+  }
+
+  const { data: { publicUrl } } = sb.storage
+    .from("photo-submissions")
+    .getPublicUrl(path);
+
+  const { data, error } = await sb
+    .from("photo_submissions")
+    .insert({
+      submitter_id: params.userId,
+      caption: params.caption.trim() || null,
+      photo_url: publicUrl,
+      storage_path: path,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("Error creating submission:", error);
+    return null;
+  }
+  return data.id as string;
+}
+
+export async function voteOnSubmission(params: {
+  submission_id: string;
+  approved: boolean;
+}): Promise<VoteResult | null> {
+  const { data, error } = await getSupabase().rpc("vote_on_submission", {
+    p_submission_id: params.submission_id,
+    p_approved: params.approved,
+  });
+
+  if (error) {
+    console.error("Error voting:", error);
+    return null;
+  }
+  return data as VoteResult;
 }

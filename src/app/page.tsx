@@ -69,16 +69,28 @@ export default function Home() {
           </div>
 
           {/* quick access */}
-          <Link
-            href="/perguntas"
-            className="flex items-center justify-between bg-accent/10 border border-accent/30 rounded-2xl px-5 py-4 hover:bg-accent/20 transition-colors"
-          >
-            <div>
-              <p className="font-bold">Perguntas</p>
-              <p className="text-sm text-muted mt-0.5">Responda e ganhe pontos</p>
-            </div>
-            <span className="text-accent text-xl">→</span>
-          </Link>
+          <div className="grid grid-cols-2 gap-3">
+            <Link
+              href="/perguntas"
+              className="flex items-center justify-between bg-accent/10 border border-accent/30 rounded-2xl px-4 py-4 hover:bg-accent/20 transition-colors"
+            >
+              <div>
+                <p className="font-bold">Perguntas</p>
+                <p className="text-xs text-muted mt-0.5">Responda e pontuе</p>
+              </div>
+              <span className="text-accent">→</span>
+            </Link>
+            <Link
+              href="/fotos"
+              className="flex items-center justify-between bg-purple/10 border border-purple/30 rounded-2xl px-4 py-4 hover:bg-purple/20 transition-colors"
+            >
+              <div>
+                <p className="font-bold">Fotos</p>
+                <p className="text-xs text-muted mt-0.5">Vote e envie</p>
+              </div>
+              <span className="text-purple">→</span>
+            </Link>
+          </div>
 
           {/* active quests */}
           <section>

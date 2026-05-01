@@ -25,6 +25,16 @@ function QuestionsIcon({ active }: { active: boolean }) {
   );
 }
 
+function PhotosIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.5 : 2} strokeLinecap="round" strokeLinejoin="round">
+      <rect x="2" y="5" width="20" height="15" rx="2" />
+      <circle cx="12" cy="13" r="3.5" />
+      <path d="M8 5l1.5-3h5L16 5" />
+    </svg>
+  );
+}
+
 function ProfileIcon({ active }: { active: boolean }) {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.5 : 2} strokeLinecap="round" strokeLinejoin="round">
@@ -51,6 +61,12 @@ export function BottomNav() {
       label: "Perguntas",
       icon: QuestionsIcon,
       active: pathname.startsWith("/perguntas"),
+    },
+    {
+      href: "/fotos",
+      label: "Fotos",
+      icon: PhotosIcon,
+      active: pathname.startsWith("/fotos"),
     },
     {
       href: profileHref,
