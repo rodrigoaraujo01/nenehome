@@ -1,41 +1,36 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Avatar } from "@/components/Avatar";
 import { Card } from "@/components/ui/Card";
-import { ADULTS } from "@/lib/constants";
 import { useAuth } from "@/hooks/useAuth";
-import Link from "next/link";
+import { getLeaderboard } from "@/lib/supabase/queries";
+import { ADULTS } from "@/lib/constants";
+import type { LeaderboardEntry } from "@/lib/types";
 
 const mockQuests = [
-  { id: 1, title: "Responda 3 quizzes", progress: 1, total: 3 },
-  { id: 2, title: "Tire uma foto com 2 membros", progress: 0, total: 1 },
-];
-
-const mockRanking = [
-  { nickname: "Grizante", points: 450 },
-  { nickname: "Dani", points: 380 },
-  { nickname: "Rodrigo", points: 320 },
-  { nickname: "Malu", points: 290 },
-  { nickname: "Leo", points: 250 },
-  { nickname: "Maiana", points: 200 },
-  { nickname: "Thiago", points: 150 },
-  { nickname: "Milena", points: 120 },
+  { id: 1, title: "Responda 3 perguntas", progress: 0, total: 3 },
+  { id: 2, title: "Crie sua primeira pergunta", progress: 0, total: 1 },
 ];
 
 export default function Home() {
-  const { member, loading, signOut } = useAuth();
+  const { profile, loading, signOut } = useAuth();
   const router = useRouter();
+  const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
 
   useEffect(() => {
-    if (!loading && !member) {
-      router.push("/login");
-    }
-  }, [loading, member, router]);
+    if (!loading && !profile) router.push("/login");
+  }, [loading, profile, router]);
 
-  if (loading || !member) {
+  useEffect(() => {
+    if (!profile) return;
+    getLeaderboard().then(setLeaderboard);
+  }, [profile]);
+
+  if (loading || !profile) {
     return (
       <main className="flex-1 flex items-center justify-center">
         <p className="text-muted">Carregando...</p>
@@ -43,8 +38,10 @@ export default function Home() {
     );
   }
 
-  const userRank = mockRanking.findIndex((r) => r.nickname === member.nickname) + 1;
-  const userPoints = mockRanking.find((r) => r.nickname === member.nickname)?.points ?? 0;
+  const userRank =
+    leaderboard.findIndex((r) => r.user_id === profile.id) + 1 || null;
+  const userPoints =
+    leaderboard.find((r) => r.user_id === profile.id)?.total_points ?? 0;
 
   return (
     <>
@@ -52,18 +49,38 @@ export default function Home() {
       <main className="flex-1 px-6 py-8">
         <div className="max-w-lg mx-auto space-y-6">
 
+          {/* greeting */}
           <div className="flex items-center gap-4">
-            <Avatar spriteUrl={member.spriteUrl} nickname={member.nickname} size={64} />
+            <Avatar
+              spriteUrl={profile.avatar_url}
+              nickname={profile.nickname}
+              size={64}
+            />
             <div>
               <p className="text-muted text-sm">Olá,</p>
-              <p className="text-2xl font-bold">{member.nickname}</p>
+              <p className="text-2xl font-bold">{profile.nickname}</p>
             </div>
             <div className="ml-auto text-right">
               <p className="text-3xl font-bold text-accent">{userPoints}</p>
-              <p className="text-muted text-xs">pontos · #{userRank}</p>
+              <p className="text-muted text-xs">
+                pontos{userRank ? ` · #${userRank}` : ""}
+              </p>
             </div>
           </div>
 
+          {/* quick access */}
+          <Link
+            href="/perguntas"
+            className="flex items-center justify-between bg-accent/10 border border-accent/30 rounded-2xl px-5 py-4 hover:bg-accent/20 transition-colors"
+          >
+            <div>
+              <p className="font-bold">Perguntas</p>
+              <p className="text-sm text-muted mt-0.5">Responda e ganhe pontos</p>
+            </div>
+            <span className="text-accent text-xl">→</span>
+          </Link>
+
+          {/* active quests */}
           <section>
             <h2 className="text-sm font-bold text-muted uppercase tracking-wider mb-3">
               Missões ativas
@@ -88,42 +105,62 @@ export default function Home() {
             </div>
           </section>
 
+          {/* leaderboard */}
           <section>
             <h2 className="text-sm font-bold text-muted uppercase tracking-wider mb-3">
               Ranking
             </h2>
             <Card>
-              <div className="space-y-3">
-                {mockRanking.map((r, i) => {
-                  const m = ADULTS.find((a) => a.nickname === r.nickname);
-                  const isUser = r.nickname === member.nickname;
-                  return (
-                    <Link
-                      key={r.nickname}
-                      href={`/perfil/${r.nickname.toLowerCase()}`}
-                      className={`flex items-center gap-3 py-1.5 rounded-lg transition-colors hover:bg-surface-light px-2 -mx-2 ${
-                        isUser ? "bg-surface-light" : ""
-                      }`}
-                    >
-                      <span className={`text-sm font-bold w-6 ${i < 3 ? "text-accent" : "text-muted"}`}>
-                        {i + 1}
-                      </span>
-                      <Avatar
-                        spriteUrl={m?.spriteUrl ?? null}
-                        nickname={r.nickname}
-                        size={32}
-                      />
-                      <span className={`font-semibold flex-1 ${isUser ? "text-accent" : ""}`}>
-                        {r.nickname}
-                      </span>
-                      <span className="text-sm text-muted">{r.points}pts</span>
-                    </Link>
-                  );
-                })}
-              </div>
+              {leaderboard.length === 0 ? (
+                <p className="text-sm text-muted text-center py-4">
+                  Nenhum ponto ainda — seja o primeiro!
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {leaderboard.map((r, i) => {
+                    const member = ADULTS.find(
+                      (a) => a.nickname === r.nickname
+                    );
+                    const isUser = r.user_id === profile.id;
+                    return (
+                      <Link
+                        key={r.user_id}
+                        href={`/perfil/${r.nickname.toLowerCase()}`}
+                        className={`flex items-center gap-3 py-1.5 rounded-lg transition-colors hover:bg-surface-light px-2 -mx-2 ${
+                          isUser ? "bg-surface-light" : ""
+                        }`}
+                      >
+                        <span
+                          className={`text-sm font-bold w-6 ${
+                            i < 3 ? "text-accent" : "text-muted"
+                          }`}
+                        >
+                          {i + 1}
+                        </span>
+                        <Avatar
+                          spriteUrl={member?.spriteUrl ?? r.avatar_url}
+                          nickname={r.nickname}
+                          size={32}
+                        />
+                        <span
+                          className={`font-semibold flex-1 ${
+                            isUser ? "text-accent" : ""
+                          }`}
+                        >
+                          {r.nickname}
+                        </span>
+                        <span className="text-sm text-muted">
+                          {r.total_points}pts
+                        </span>
+                      </Link>
+                    );
+                  })}
+                </div>
+              )}
             </Card>
           </section>
 
+          {/* group */}
           <section>
             <h2 className="text-sm font-bold text-muted uppercase tracking-wider mb-3">
               O grupo
@@ -135,7 +172,11 @@ export default function Home() {
                   href={`/perfil/${m.nickname.toLowerCase()}`}
                   className="flex flex-col items-center gap-1.5 shrink-0 hover:opacity-80 transition-opacity"
                 >
-                  <Avatar spriteUrl={m.spriteUrl} nickname={m.nickname} size={48} />
+                  <Avatar
+                    spriteUrl={m.spriteUrl}
+                    nickname={m.nickname}
+                    size={48}
+                  />
                   <span className="text-xs text-muted">{m.nickname}</span>
                 </Link>
               ))}
@@ -148,7 +189,6 @@ export default function Home() {
           >
             Sair
           </button>
-
         </div>
       </main>
     </>
