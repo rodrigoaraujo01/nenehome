@@ -77,3 +77,19 @@ export interface AnswerResult {
   is_correct: boolean;
   points_earned: number;
 }
+
+export interface ProfileStats {
+  total_points: number;
+  answers_total: number;
+  answers_correct: number;
+  questions_created: number;
+  recent_answers: {
+    is_correct: boolean;
+    question_id: string;
+    questions: {
+      type: string;
+      content: string;
+      created_at: string;
+    } | null;
+  }[];
+}

@@ -4,6 +4,7 @@ import type {
   DbQuestion,
   LeaderboardEntry,
   AnswerResult,
+  ProfileStats,
 } from "@/lib/types";
 import { MEMBERS } from "@/lib/constants";
 
@@ -183,4 +184,49 @@ export async function submitAnswer(params: {
     return null;
   }
   return data as AnswerResult;
+}
+
+// ─── Profile stats ────────────────────────────────────────────────────────────
+
+export async function getProfileStats(nickname: string): Promise<ProfileStats | null> {
+  const sb = getSupabase();
+
+  const { data: profileRow } = await sb
+    .from("profiles")
+    .select("id")
+    .eq("nickname", nickname)
+    .maybeSingle();
+
+  if (!profileRow) return null;
+
+  const [pointsRes, answersRes, questionsRes] = await Promise.all([
+    sb
+      .from("member_points")
+      .select("total_points")
+      .eq("user_id", profileRow.id)
+      .maybeSingle(),
+    sb
+      .from("answers")
+      .select("is_correct, question_id, questions(type, content, created_at)")
+      .eq("user_id", profileRow.id)
+      .order("created_at", { ascending: false })
+      .limit(20),
+    sb
+      .from("questions")
+      .select("id", { count: "exact", head: true })
+      .eq("creator_id", profileRow.id),
+  ]);
+
+  const total_points = (pointsRes.data?.total_points as number) ?? 0;
+  const answers = answersRes.data ?? [];
+  const correct = answers.filter((a) => a.is_correct).length;
+  const questions_created = questionsRes.count ?? 0;
+
+  return {
+    total_points,
+    answers_total: answers.length,
+    answers_correct: correct,
+    questions_created,
+    recent_answers: answers as ProfileStats["recent_answers"],
+  };
 }
