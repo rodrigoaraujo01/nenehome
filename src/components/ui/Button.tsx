@@ -1,5 +1,6 @@
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
   variant?: "accent" | "ghost";
+  children?: React.ReactNode;
 }
 
 export function Button({

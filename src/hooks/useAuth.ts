@@ -2,44 +2,63 @@
 
 import { useEffect, useState } from "react";
 import { getSupabase } from "@/lib/supabase/client";
-import { MEMBERS } from "@/lib/constants";
-import type { Member } from "@/lib/types";
+import { getOrCreateProfile } from "@/lib/supabase/queries";
+import type { DbProfile } from "@/lib/types";
 import type { User } from "@supabase/supabase-js";
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null);
-  const [member, setMember] = useState<Member | null>(null);
+  const [profile, setProfile] = useState<DbProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    getSupabase().auth.getSession().then(({ data: { session } }) => {
-      const u = session?.user ?? null;
-      setUser(u);
-      if (u) {
-        setMember(MEMBERS.find((m) => m.email === u.email) ?? null);
-      }
-      setLoading(false);
-    });
+  async function syncProfile(u: User | null) {
+    if (!u) {
+      setProfile(null);
+      return;
+    }
+    const p = await getOrCreateProfile(u.id, u.email ?? "");
+    setProfile(p);
+  }
 
-    const { data: { subscription } } = getSupabase().auth.onAuthStateChange((_event, session) => {
+  useEffect(() => {
+    getSupabase()
+      .auth.getSession()
+      .then(async ({ data: { session } }) => {
+        const u = session?.user ?? null;
+        setUser(u);
+        await syncProfile(u);
+        setLoading(false);
+      });
+
+    const {
+      data: { subscription },
+    } = getSupabase().auth.onAuthStateChange(async (_event, session) => {
       const u = session?.user ?? null;
       setUser(u);
-      setMember(u ? MEMBERS.find((m) => m.email === u.email) ?? null : null);
+      await syncProfile(u);
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await getSupabase().auth.signInWithPassword({ email, password });
+    const { error } = await getSupabase().auth.signInWithPassword({
+      email,
+      password,
+    });
     return error;
   };
 
   const signOut = async () => {
     await getSupabase().auth.signOut();
     setUser(null);
-    setMember(null);
+    setProfile(null);
   };
 
-  return { user, member, loading, signIn, signOut };
+  const updatePassword = async (password: string) => {
+    const { error } = await getSupabase().auth.updateUser({ password });
+    return error;
+  };
+
+  return { user, profile, loading, signIn, signOut, updatePassword };
 }

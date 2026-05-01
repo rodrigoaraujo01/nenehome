@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Space_Grotesk } from "next/font/google";
+import { BottomNav } from "@/components/BottomNav";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -19,7 +20,28 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="pt-BR" className={`${spaceGrotesk.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <head>
+        {/* Restore path after 404.html SPA redirect on GitHub Pages */}
+        <script dangerouslySetInnerHTML={{ __html: `
+          (function() {
+            var q = window.location.search;
+            if (q && q[1] === 'p') {
+              var path = q.slice(3).replace(/~and~/g, '&');
+              var extra = q.indexOf('&q=') !== -1
+                ? '?' + q.slice(q.indexOf('&q=') + 3).replace(/~and~/g, '&')
+                : '';
+              window.history.replaceState(
+                null, null,
+                window.location.pathname.replace(/\\/$/, '') + '/' + path + extra + window.location.hash
+              );
+            }
+          })();
+        `}} />
+      </head>
+      <body className="min-h-full flex flex-col pb-20">
+        {children}
+        <BottomNav />
+      </body>
     </html>
   );
 }
