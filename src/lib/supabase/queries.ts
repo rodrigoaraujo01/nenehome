@@ -9,6 +9,13 @@ import type {
   VoteResult,
   DbAchievement,
   UnlockedAchievement,
+  NenecoinBalance,
+  WeeklyBonusResult,
+  ConvertResult,
+  GiftResult,
+  DbBet,
+  PlaceBetResult,
+  ResolveBetResult,
 } from "@/lib/types";
 import { MEMBERS } from "@/lib/constants";
 
@@ -232,7 +239,7 @@ export async function getProfileStats(nickname: string): Promise<ProfileStats | 
     answers_total: answers.length,
     answers_correct: correct,
     questions_created,
-    recent_answers: answers as ProfileStats["recent_answers"],
+    recent_answers: answers as unknown as ProfileStats["recent_answers"],
   };
 }
 
@@ -373,4 +380,161 @@ export async function getUserAchievements(
     ...a,
     unlocked_at: unlocked.get(a.id) ?? null,
   })) as DbAchievement[];
+}
+
+// ─── Nenecoins ────────────────────────────────────────────────────────────────
+
+export async function getNenecoinBalance(): Promise<NenecoinBalance | null> {
+  const { data, error } = await getSupabase().rpc("get_nenecoin_balance");
+  if (error) { console.error("getNenecoinBalance:", error); return null; }
+  return data as NenecoinBalance;
+}
+
+export async function claimWeeklyBonuses(): Promise<WeeklyBonusResult | null> {
+  const { data, error } = await getSupabase().rpc("claim_weekly_bonuses");
+  if (error) { console.error("claimWeeklyBonuses:", error); return null; }
+  return data as WeeklyBonusResult;
+}
+
+export async function checkFirecoinConversion(): Promise<{ converted: number; show_popup: boolean } | null> {
+  const { data, error } = await getSupabase().rpc("check_firecoin_conversion");
+  if (error) { console.error("checkFirecoinConversion:", error); return null; }
+  return data as { converted: number; show_popup: boolean };
+}
+
+export async function markFirecoinPopupShown(): Promise<void> {
+  await getSupabase().rpc("mark_firecoin_popup_shown");
+}
+
+export async function convertPointsToNenecoins(points: number): Promise<ConvertResult> {
+  const { data, error } = await getSupabase().rpc("convert_points_to_nenecoins", {
+    p_points: points,
+  });
+  if (error) return { error: error.message };
+  return data as ConvertResult;
+}
+
+export async function giftNenecoins(
+  toUserId: string,
+  amount: number,
+  note?: string
+): Promise<GiftResult> {
+  const { data, error } = await getSupabase().rpc("gift_nenecoins", {
+    p_to_user_id: toUserId,
+    p_amount: amount,
+    p_note: note ?? null,
+  });
+  if (error) return { error: error.message };
+  return data as GiftResult;
+}
+
+// ─── Bets ─────────────────────────────────────────────────────────────────────
+
+export async function getBets(userId: string): Promise<DbBet[]> {
+  const { data, error } = await getSupabase()
+    .from("bets")
+    .select(`
+      *,
+      creator:profiles!creator_id(nickname, avatar_url),
+      options:bet_options(id, label, position),
+      entries:bet_entries(id, user_id, coins_wagered, is_winner)
+    `)
+    .order("status", { ascending: true })
+    .order("created_at", { ascending: false });
+
+  if (error || !data) return [];
+
+  return data.map((b) => {
+    const entries = (b.entries ?? []) as { user_id: string; coins_wagered: number; is_winner: boolean | null }[];
+    return {
+      ...b,
+      total_pot: entries.reduce((s, e) => s + e.coins_wagered, 0),
+      entries_count: entries.length,
+      my_entry: entries.find((e) => e.user_id === userId) ?? null,
+      entries: undefined,
+    };
+  }) as DbBet[];
+}
+
+export async function getBet(id: string, userId: string): Promise<DbBet | null> {
+  const { data, error } = await getSupabase()
+    .from("bets")
+    .select(`
+      *,
+      creator:profiles!creator_id(nickname, avatar_url),
+      options:bet_options(id, label, position),
+      entries:bet_entries(
+        id, user_id, option_id, guess_value,
+        coins_wagered, is_winner, coins_won, created_at,
+        profiles(nickname, avatar_url)
+      )
+    `)
+    .eq("id", id)
+    .single();
+
+  if (error || !data) return null;
+
+  const entries = (data.entries ?? []) as DbBet["entries"];
+  const total_pot = entries?.reduce((s, e) => s + e.coins_wagered, 0) ?? 0;
+  return {
+    ...data,
+    options: (data.options ?? []).sort(
+      (a: { position: number }, b: { position: number }) => a.position - b.position
+    ),
+    entries,
+    total_pot,
+    entries_count: entries?.length ?? 0,
+    my_entry: entries?.find((e) => e.user_id === userId) ?? null,
+  } as DbBet;
+}
+
+export async function createBet(params: {
+  title: string;
+  description?: string;
+  type: "pool" | "closest_guess";
+  guess_kind?: "date" | "number";
+  unit?: string;
+  deadline: string;
+  options?: { label: string }[];
+}): Promise<{ id: string } | null> {
+  const { data, error } = await getSupabase().rpc("create_bet", {
+    p_title:       params.title,
+    p_description: params.description ?? null,
+    p_type:        params.type,
+    p_guess_kind:  params.guess_kind ?? null,
+    p_unit:        params.unit ?? null,
+    p_deadline:    params.deadline,
+    p_options:     params.options ? JSON.stringify(params.options) : null,
+  });
+  if (error) { console.error("createBet:", error); return null; }
+  return data as { id: string };
+}
+
+export async function placeBet(params: {
+  bet_id: string;
+  coins: number;
+  option_id?: string;
+  guess_value?: string;
+}): Promise<PlaceBetResult> {
+  const { data, error } = await getSupabase().rpc("place_bet", {
+    p_bet_id:      params.bet_id,
+    p_coins:       params.coins,
+    p_option_id:   params.option_id ?? null,
+    p_guess_value: params.guess_value ?? null,
+  });
+  if (error) return { error: error.message };
+  const result = data as PlaceBetResult;
+  return { ...result, achievements: result.achievements ?? [] };
+}
+
+export async function resolveBet(
+  betId: string,
+  resultValue: string
+): Promise<ResolveBetResult> {
+  const { data, error } = await getSupabase().rpc("resolve_bet", {
+    p_bet_id:       betId,
+    p_result_value: resultValue,
+  });
+  if (error) return { error: error.message };
+  return data as ResolveBetResult;
 }

@@ -5,12 +5,17 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Avatar } from "@/components/Avatar";
 import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
 import { MEMBERS, COUPLES } from "@/lib/constants";
-import { getProfileStats } from "@/lib/supabase/queries";
+import {
+  getProfileStats,
+  getUserAchievements,
+  getNenecoinBalance,
+  giftNenecoins,
+} from "@/lib/supabase/queries";
 import { useAuth } from "@/hooks/useAuth";
-import { getUserAchievements } from "@/lib/supabase/queries";
 import { getSupabase } from "@/lib/supabase/client";
-import type { ProfileStats, DbAchievement } from "@/lib/types";
+import type { ProfileStats, DbAchievement, NenecoinBalance } from "@/lib/types";
 
 async function getProfileIdByNickname(nickname: string): Promise<string | null> {
   const { data } = await getSupabase()
@@ -26,6 +31,15 @@ export function ProfileClient({ nickname }: { nickname: string }) {
   const [stats, setStats] = useState<ProfileStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
   const [achievements, setAchievements] = useState<DbAchievement[]>([]);
+  const [balance, setBalance] = useState<NenecoinBalance | null>(null);
+  const [profileId, setProfileId] = useState<string | null>(null);
+
+  // Gift modal state
+  const [showGift, setShowGift] = useState(false);
+  const [giftAmount, setGiftAmount] = useState(10);
+  const [giftNote, setGiftNote] = useState("");
+  const [gifting, setGifting] = useState(false);
+  const [giftMsg, setGiftMsg] = useState<string | null>(null);
 
   const member = MEMBERS.find(
     (m) => m.nickname.toLowerCase() === nickname.toLowerCase()
@@ -41,12 +55,19 @@ export function ProfileClient({ nickname }: { nickname: string }) {
 
   useEffect(() => {
     if (!member) return;
-    // find this member's profile id by matching nickname in the leaderboard
-    // we use a simple approach: fetch after stats load
     getProfileIdByNickname(member.nickname).then((id) => {
+      setProfileId(id);
       if (id) getUserAchievements(id).then(setAchievements);
     });
   }, [member?.nickname]);
+
+  // Load own balance when viewing own profile
+  useEffect(() => {
+    if (!currentUser || !member) return;
+    if (currentUser.nickname.toLowerCase() === member.nickname.toLowerCase()) {
+      getNenecoinBalance().then(setBalance);
+    }
+  }, [currentUser?.id, member?.nickname]);
 
   if (!member) {
     return (
@@ -66,6 +87,25 @@ export function ProfileClient({ nickname }: { nickname: string }) {
     stats && stats.answers_total > 0
       ? Math.round((stats.answers_correct / stats.answers_total) * 100)
       : null;
+
+  async function handleGift(e: React.FormEvent) {
+    e.preventDefault();
+    if (!profileId) return;
+    setGifting(true);
+    setGiftMsg(null);
+    const result = await giftNenecoins(profileId, giftAmount, giftNote.trim() || undefined);
+    setGifting(false);
+    if (result.error) {
+      setGiftMsg(`Erro: ${result.error}`);
+    } else {
+      setGiftMsg(`🎁 ${giftAmount} nenecoins enviadas para ${member!.nickname}!`);
+      setGiftAmount(10);
+      setGiftNote("");
+      const bal = await getNenecoinBalance();
+      if (bal) setBalance(bal);
+      setTimeout(() => { setShowGift(false); setGiftMsg(null); }, 2000);
+    }
+  }
 
   return (
     <>
@@ -89,6 +129,97 @@ export function ProfileClient({ nickname }: { nickname: string }) {
                 {stats?.total_points ?? 0}
               </span>
               <span className="text-xs text-muted mt-1">pontos</span>
+            </div>
+          )}
+
+          {/* Nenecoin balance (own profile) */}
+          {isOwnProfile && balance !== null && (
+            <div className="flex gap-3 w-full">
+              <div className="flex-1 bg-surface border border-border rounded-2xl px-4 py-3 flex items-center gap-2">
+                <span className="text-xl">🪙</span>
+                <div>
+                  <p className="text-lg font-bold">{balance.nenecoin_balance}</p>
+                  <p className="text-[10px] text-muted">nenecoins</p>
+                </div>
+              </div>
+              {balance.firecoin_balance > 0 && (
+                <div className="flex-1 bg-surface border border-border rounded-2xl px-4 py-3 flex items-center gap-2">
+                  <span className="text-xl">🔥</span>
+                  <div>
+                    <p className="text-lg font-bold">{balance.firecoin_balance}</p>
+                    <p className="text-[10px] text-muted">firecoins</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Gift button (other profiles) */}
+          {!isOwnProfile && profileId && (
+            <div className="w-full">
+              {!showGift ? (
+                <button
+                  onClick={() => setShowGift(true)}
+                  className="w-full text-sm text-accent border border-accent/30 rounded-xl py-2.5 hover:bg-accent/5 transition-colors font-semibold"
+                >
+                  🎁 Dar nenecoins para {member.nickname}
+                </button>
+              ) : (
+                <Card className="w-full">
+                  <p className="font-semibold text-sm mb-3">🎁 Dar nenecoins</p>
+                  <form onSubmit={handleGift} className="space-y-3">
+                    <div>
+                      <label className="text-xs text-muted block mb-1">Quantidade</label>
+                      <div className="flex items-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setGiftAmount((a) => Math.max(1, a - 5))}
+                          className="w-8 h-8 rounded-full border border-border text-muted text-lg font-bold"
+                        >−</button>
+                        <input
+                          type="number"
+                          min={1}
+                          value={giftAmount}
+                          onChange={(e) => setGiftAmount(Math.max(1, parseInt(e.target.value) || 1))}
+                          className="flex-1 text-center bg-surface border border-border rounded-xl px-3 py-1.5 font-bold focus:outline-none focus:border-accent"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setGiftAmount((a) => a + 5)}
+                          className="w-8 h-8 rounded-full border border-border text-muted text-lg font-bold"
+                        >+</button>
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted block mb-1">Mensagem (opcional)</label>
+                      <input
+                        type="text"
+                        value={giftNote}
+                        onChange={(e) => setGiftNote(e.target.value)}
+                        placeholder="Presente pra você! 🎉"
+                        className="w-full bg-surface border border-border rounded-xl px-3 py-2 text-sm placeholder:text-muted/50 focus:outline-none focus:border-accent"
+                      />
+                    </div>
+                    {giftMsg && (
+                      <p className={`text-sm ${giftMsg.startsWith("Erro") ? "text-red-400" : "text-green"}`}>
+                        {giftMsg}
+                      </p>
+                    )}
+                    <div className="flex gap-2">
+                      <Button type="submit" className="flex-1" disabled={gifting}>
+                        {gifting ? "Enviando..." : "Enviar"}
+                      </Button>
+                      <button
+                        type="button"
+                        onClick={() => { setShowGift(false); setGiftMsg(null); }}
+                        className="px-4 py-2 text-sm text-muted hover:text-foreground transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
+                  </form>
+                </Card>
+              )}
             </div>
           )}
 

@@ -35,6 +35,17 @@ function PhotosIcon({ active }: { active: boolean }) {
   );
 }
 
+function BetsIcon({ active }: { active: boolean }) {
+  return (
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.5 : 2} strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 7v5l3 3" />
+      <path d="M7.5 4.5 C6 6 5 8 5 10" />
+      <path d="M16.5 4.5 C18 6 19 8 19 10" />
+    </svg>
+  );
+}
+
 function ProfileIcon({ active }: { active: boolean }) {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={active ? 2.5 : 2} strokeLinecap="round" strokeLinejoin="round">
@@ -55,25 +66,11 @@ export function BottomNav() {
     : "/login";
 
   const links = [
-    { href: "/", label: "Início", icon: HomeIcon, active: pathname === "/" },
-    {
-      href: "/perguntas",
-      label: "Perguntas",
-      icon: QuestionsIcon,
-      active: pathname.startsWith("/perguntas"),
-    },
-    {
-      href: "/fotos",
-      label: "Fotos",
-      icon: PhotosIcon,
-      active: pathname.startsWith("/fotos"),
-    },
-    {
-      href: profileHref,
-      label: "Perfil",
-      icon: ProfileIcon,
-      active: pathname.startsWith("/perfil"),
-    },
+    { href: "/",         label: "Início",    icon: HomeIcon,      active: pathname === "/" },
+    { href: "/perguntas",label: "Perguntas", icon: QuestionsIcon, active: pathname.startsWith("/perguntas") },
+    { href: "/fotos",    label: "Fotos",     icon: PhotosIcon,    active: pathname.startsWith("/fotos") },
+    { href: "/apostas",  label: "Apostas",   icon: BetsIcon,      active: pathname.startsWith("/apostas") },
+    { href: profileHref, label: "Perfil",    icon: ProfileIcon,   active: pathname.startsWith("/perfil") },
   ];
 
   return (
