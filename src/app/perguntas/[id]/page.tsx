@@ -9,10 +9,11 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/ui/Button";
+import { AchievementToast } from "@/components/AchievementToast";
 import { useAuth } from "@/hooks/useAuth";
 import { getQuestion, submitAnswer } from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
-import type { DbQuestion, AnswerResult } from "@/lib/types";
+import type { DbQuestion, AnswerResult, UnlockedAchievement } from "@/lib/types";
 
 const OPTION_LABELS = ["A", "B", "C", "D"];
 
@@ -27,6 +28,7 @@ export default function PerguntaPage() {
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<AnswerResult | null>(null);
+  const [newAchievements, setNewAchievements] = useState<UnlockedAchievement[]>([]);
 
   useEffect(() => {
     if (!loading && !profile) router.push("/login");
@@ -81,6 +83,7 @@ export default function PerguntaPage() {
     setSubmitting(false);
     if (res) {
       setResult(res);
+      if (res.achievements?.length) setNewAchievements(res.achievements);
       // refresh question to get my_answer
       if (profile) {
         const updated = await getQuestion(question.id, profile.id);
@@ -106,6 +109,7 @@ export default function PerguntaPage() {
 
   return (
     <>
+      <AchievementToast achievements={newAchievements} />
       <Header />
       <main className="flex-1 px-6 py-8">
         <div className="max-w-lg mx-auto space-y-6">

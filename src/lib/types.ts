@@ -76,6 +76,24 @@ export interface LeaderboardEntry {
 export interface AnswerResult {
   is_correct: boolean;
   points_earned: number;
+  achievements?: UnlockedAchievement[];
+}
+
+export interface UnlockedAchievement {
+  key: string;
+  title: string;
+  icon: string;
+}
+
+export interface DbAchievement {
+  id: string;
+  key: string;
+  title: string;
+  description: string;
+  icon: string;
+  points_reward: number;
+  sort_order: number;
+  unlocked_at?: string | null;
 }
 
 export interface ProfileStats {
@@ -126,4 +144,5 @@ export interface VoteResult {
   approve_count: number;
   reject_count: number;
   status: "pending" | "approved" | "rejected";
+  achievements?: UnlockedAchievement[];
 }

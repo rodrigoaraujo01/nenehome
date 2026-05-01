@@ -8,12 +8,24 @@ import { Card } from "@/components/ui/Card";
 import { MEMBERS, COUPLES } from "@/lib/constants";
 import { getProfileStats } from "@/lib/supabase/queries";
 import { useAuth } from "@/hooks/useAuth";
-import type { ProfileStats } from "@/lib/types";
+import { getUserAchievements } from "@/lib/supabase/queries";
+import { getSupabase } from "@/lib/supabase/client";
+import type { ProfileStats, DbAchievement } from "@/lib/types";
+
+async function getProfileIdByNickname(nickname: string): Promise<string | null> {
+  const { data } = await getSupabase()
+    .from("profiles")
+    .select("id")
+    .eq("nickname", nickname)
+    .maybeSingle();
+  return data?.id ?? null;
+}
 
 export function ProfileClient({ nickname }: { nickname: string }) {
   const { profile: currentUser } = useAuth();
   const [stats, setStats] = useState<ProfileStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
+  const [achievements, setAchievements] = useState<DbAchievement[]>([]);
 
   const member = MEMBERS.find(
     (m) => m.nickname.toLowerCase() === nickname.toLowerCase()
@@ -24,6 +36,15 @@ export function ProfileClient({ nickname }: { nickname: string }) {
     getProfileStats(member.nickname).then((s) => {
       setStats(s);
       setLoadingStats(false);
+    });
+  }, [member?.nickname]);
+
+  useEffect(() => {
+    if (!member) return;
+    // find this member's profile id by matching nickname in the leaderboard
+    // we use a simple approach: fetch after stats load
+    getProfileIdByNickname(member.nickname).then((id) => {
+      if (id) getUserAchievements(id).then(setAchievements);
     });
   }, [member?.nickname]);
 
@@ -113,6 +134,32 @@ export function ProfileClient({ nickname }: { nickname: string }) {
                   ))}
                 </div>
               </Card>
+            </div>
+          )}
+
+          {achievements.length > 0 && (
+            <div className="w-full">
+              <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
+                Conquistas
+              </h3>
+              <div className="grid grid-cols-4 gap-2">
+                {achievements.map((a) => (
+                  <div
+                    key={a.key}
+                    title={a.unlocked_at ? a.title : a.description}
+                    className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-colors ${
+                      a.unlocked_at
+                        ? "border-accent/30 bg-accent/5"
+                        : "border-border opacity-30"
+                    }`}
+                  >
+                    <span className="text-2xl">{a.icon}</span>
+                    <span className="text-[10px] text-center text-muted leading-tight">
+                      {a.title}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 

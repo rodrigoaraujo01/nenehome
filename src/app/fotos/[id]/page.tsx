@@ -10,10 +10,11 @@ import Image from "next/image";
 import { Header } from "@/components/Header";
 import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/ui/Button";
+import { AchievementToast } from "@/components/AchievementToast";
 import { useAuth } from "@/hooks/useAuth";
 import { getPhotoSubmission, voteOnSubmission } from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
-import type { DbPhotoSubmission, VoteResult } from "@/lib/types";
+import type { DbPhotoSubmission, VoteResult, UnlockedAchievement } from "@/lib/types";
 
 const STATUS_LABEL = {
   pending: "Votação aberta",
@@ -36,6 +37,7 @@ export default function FotoDetailPage() {
   const [fetching, setFetching] = useState(true);
   const [voting, setVoting] = useState(false);
   const [voteResult, setVoteResult] = useState<VoteResult | null>(null);
+  const [newAchievements, setNewAchievements] = useState<UnlockedAchievement[]>([]);
 
   useEffect(() => {
     if (!loading && !profile) router.push("/login");
@@ -88,7 +90,10 @@ export default function FotoDetailPage() {
       approved,
     });
     setVoting(false);
-    if (result) setVoteResult(result);
+    if (result) {
+      setVoteResult(result);
+      if (result.achievements?.length) setNewAchievements(result.achievements);
+    }
   }
 
   // build voter list from raw votes (joined data)
@@ -103,6 +108,7 @@ export default function FotoDetailPage() {
 
   return (
     <>
+      <AchievementToast achievements={newAchievements} />
       <Header />
       <main className="flex-1 px-6 py-8">
         <div className="max-w-lg mx-auto space-y-5">

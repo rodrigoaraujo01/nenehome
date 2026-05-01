@@ -6,9 +6,11 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/ui/Button";
+import { AchievementToast } from "@/components/AchievementToast";
 import { useAuth } from "@/hooks/useAuth";
 import { createQuestion } from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
+import type { UnlockedAchievement } from "@/lib/types";
 
 type QuestionType = "story" | "multiple_choice";
 
@@ -32,6 +34,7 @@ export default function NovaPerguntaPage() {
   ]);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [newAchievements, setNewAchievements] = useState<UnlockedAchievement[]>([]);
 
   if (loading) {
     return (
@@ -71,20 +74,25 @@ export default function NovaPerguntaPage() {
     setError(null);
     setSubmitting(true);
 
-    const id = await createQuestion({
+    const result = await createQuestion({
       type,
       content: content.trim(),
       subject_id: type === "story" ? (subjectId ?? undefined) : undefined,
       options: type === "multiple_choice" ? options : undefined,
     });
 
-    if (!id) {
+    if (!result) {
       setError("Erro ao criar pergunta. Tente novamente.");
       setSubmitting(false);
       return;
     }
 
-    router.push("/perguntas");
+    if (result.achievements.length) {
+      setNewAchievements(result.achievements);
+      setTimeout(() => router.push("/perguntas"), 3500);
+    } else {
+      router.push("/perguntas");
+    }
   }
 
   // exclude self from subject picker
@@ -94,6 +102,7 @@ export default function NovaPerguntaPage() {
 
   return (
     <>
+      <AchievementToast achievements={newAchievements} />
       <Header />
       <main className="flex-1 px-6 py-8">
         <div className="max-w-lg mx-auto">

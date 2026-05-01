@@ -7,6 +7,8 @@ import type {
   ProfileStats,
   DbPhotoSubmission,
   VoteResult,
+  DbAchievement,
+  UnlockedAchievement,
 } from "@/lib/types";
 import { MEMBERS } from "@/lib/constants";
 
@@ -153,7 +155,7 @@ export async function createQuestion(params: {
   content: string;
   subject_id?: string;
   options?: { text: string; is_correct: boolean }[];
-}): Promise<string | null> {
+}): Promise<{ id: string; achievements: UnlockedAchievement[] } | null> {
   const { data, error } = await getSupabase().rpc("create_question", {
     p_type: params.type,
     p_content: params.content,
@@ -165,7 +167,8 @@ export async function createQuestion(params: {
     console.error("Error creating question:", error);
     return null;
   }
-  return data as string;
+  const result = data as { id: string; achievements: UnlockedAchievement[] };
+  return { id: result.id, achievements: result.achievements ?? [] };
 }
 
 // ─── Submit answer (via RPC) ──────────────────────────────────────────────────
@@ -343,5 +346,31 @@ export async function voteOnSubmission(params: {
     console.error("Error voting:", error);
     return null;
   }
-  return data as VoteResult;
+  const result = data as VoteResult;
+  return { ...result, achievements: result.achievements ?? [] };
+}
+
+// ─── Achievements ─────────────────────────────────────────────────────────────
+
+export async function getUserAchievements(
+  userId: string
+): Promise<DbAchievement[]> {
+  const sb = getSupabase();
+
+  const [allRes, unlockedRes] = await Promise.all([
+    sb.from("achievements").select("*").order("sort_order"),
+    sb
+      .from("user_achievements")
+      .select("achievement_id, unlocked_at")
+      .eq("user_id", userId),
+  ]);
+
+  const unlocked = new Map(
+    (unlockedRes.data ?? []).map((u) => [u.achievement_id, u.unlocked_at])
+  );
+
+  return (allRes.data ?? []).map((a) => ({
+    ...a,
+    unlocked_at: unlocked.get(a.id) ?? null,
+  })) as DbAchievement[];
 }
