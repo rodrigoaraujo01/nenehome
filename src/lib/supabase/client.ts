@@ -9,7 +9,9 @@ export function getSupabase(): SupabaseClient {
     if (!url || !key) {
       throw new Error("Supabase env vars not set");
     }
-    _supabase = createClient(url, key);
+    _supabase = createClient(url, key, {
+      auth: { flowType: "implicit" },
+    });
   }
   return _supabase;
 }
