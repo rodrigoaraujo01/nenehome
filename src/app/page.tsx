@@ -7,9 +7,9 @@ import { Header } from "@/components/Header";
 import { Avatar } from "@/components/Avatar";
 import { Card } from "@/components/ui/Card";
 import { useAuth } from "@/hooks/useAuth";
-import { getLeaderboard } from "@/lib/supabase/queries";
+import { getLeaderboard, getNenecoinBalance } from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
-import type { LeaderboardEntry } from "@/lib/types";
+import type { LeaderboardEntry, NenecoinBalance } from "@/lib/types";
 
 const mockQuests = [
   { id: 1, title: "Responda 3 perguntas", progress: 0, total: 3 },
@@ -20,6 +20,7 @@ export default function Home() {
   const { profile, loading, signOut } = useAuth();
   const router = useRouter();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
+  const [balance, setBalance] = useState<NenecoinBalance | null>(null);
 
   useEffect(() => {
     if (!loading && !profile) router.push("/login");
@@ -28,6 +29,7 @@ export default function Home() {
   useEffect(() => {
     if (!profile) return;
     getLeaderboard().then(setLeaderboard);
+    getNenecoinBalance().then(setBalance);
   }, [profile]);
 
   if (loading || !profile) {
@@ -38,6 +40,7 @@ export default function Home() {
     );
   }
 
+  const currentMember = ADULTS.find((m) => m.nickname === profile.nickname);
   const userRank =
     leaderboard.findIndex((r) => r.user_id === profile.id) + 1 || null;
   const userPoints =
@@ -52,7 +55,7 @@ export default function Home() {
           {/* greeting */}
           <div className="flex items-center gap-4">
             <Avatar
-              spriteUrl={profile.avatar_url}
+              spriteUrl={currentMember?.spriteUrl ?? profile.avatar_url}
               nickname={profile.nickname}
               size={64}
             />
@@ -67,6 +70,28 @@ export default function Home() {
               </p>
             </div>
           </div>
+
+          {/* nenecoins */}
+          {balance && (
+            <div className="flex gap-3">
+              <div className="flex-1 bg-surface border border-border rounded-2xl px-4 py-3 flex items-center gap-2">
+                <span className="text-xl">🪙</span>
+                <div>
+                  <p className="text-lg font-bold">{balance.nenecoin_balance}</p>
+                  <p className="text-[10px] text-muted">nenecoins</p>
+                </div>
+              </div>
+              {balance.firecoin_balance > 0 && (
+                <div className="flex-1 bg-surface border border-border rounded-2xl px-4 py-3 flex items-center gap-2">
+                  <span className="text-xl">🔥</span>
+                  <div>
+                    <p className="text-lg font-bold">{balance.firecoin_balance}</p>
+                    <p className="text-[10px] text-muted">firecoins</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* quick access */}
           <div className="grid grid-cols-2 gap-3">

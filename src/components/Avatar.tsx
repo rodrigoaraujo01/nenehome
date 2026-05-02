@@ -26,8 +26,8 @@ export function Avatar({ spriteUrl, nickname, size = 128 }: AvatarProps) {
       alt={`Avatar de ${nickname}`}
       width={size}
       height={size}
-      className="object-contain"
-      style={{ width: size, height: "auto", imageRendering: "pixelated" }}
+      className="rounded-full object-cover"
+      style={{ width: size, height: size }}
     />
   );
 }
