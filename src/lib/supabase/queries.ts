@@ -6,6 +6,7 @@ import type {
   AnswerResult,
   ProfileStats,
   DbPhotoSubmission,
+  DbPhotoChallenge,
   VoteResult,
   DbAchievement,
   UnlockedAchievement,
@@ -243,6 +244,114 @@ export async function getProfileStats(nickname: string): Promise<ProfileStats | 
   };
 }
 
+// ─── Photo challenges ─────────────────────────────────────────────────────────
+
+export async function getChallenges(
+  userId: string
+): Promise<DbPhotoChallenge[]> {
+  const sb = getSupabase();
+
+  const { data, error } = await sb
+    .from("photo_challenges")
+    .select(`
+      *,
+      creator:profiles!creator_id(id, nickname, avatar_url),
+      completions:photo_challenge_completions(id, user_id, completed_at, user:profiles!user_id(id, nickname, avatar_url))
+    `)
+    .order("deadline", { ascending: true });
+
+  if (error || !data) return [];
+
+  return data.map((c) => {
+    const completions = (c.completions ?? []) as DbPhotoChallenge["completions"];
+    const myCompletion = completions?.find((comp) => comp.user_id === userId) ?? null;
+    return {
+      ...c,
+      completions,
+      completion_count: completions?.length ?? 0,
+      my_completion: myCompletion,
+    };
+  }) as DbPhotoChallenge[];
+}
+
+export async function getChallenge(
+  id: string,
+  userId: string
+): Promise<DbPhotoChallenge | null> {
+  const sb = getSupabase();
+
+  const { data, error } = await sb
+    .from("photo_challenges")
+    .select(`
+      *,
+      creator:profiles!creator_id(id, nickname, avatar_url),
+      completions:photo_challenge_completions(id, user_id, submission_id, completed_at, user:profiles!user_id(id, nickname, avatar_url))
+    `)
+    .eq("id", id)
+    .single();
+
+  if (error || !data) return null;
+
+  const completions = (data.completions ?? []) as DbPhotoChallenge["completions"];
+  const myCompletion = completions?.find((comp) => comp.user_id === userId) ?? null;
+
+  // fetch submissions linked to this challenge
+  const { data: subs } = await sb
+    .from("photo_submissions")
+    .select(`
+      *,
+      submitter:profiles!submitter_id(id, nickname, avatar_url),
+      votes:photo_votes(id, voter_id, approved)
+    `)
+    .eq("challenge_id", id)
+    .order("created_at", { ascending: false });
+
+  const submissions = (subs ?? []).map((s) => {
+    const votes = (s.votes ?? []) as { voter_id: string; approved: boolean }[];
+    const myVoteObj = votes.find((v) => v.voter_id === userId);
+    return {
+      ...s,
+      approve_count: votes.filter((v) => v.approved).length,
+      reject_count: votes.filter((v) => !v.approved).length,
+      my_vote: myVoteObj ? myVoteObj.approved : null,
+    };
+  }) as DbPhotoSubmission[];
+
+  return {
+    ...data,
+    completions,
+    completion_count: completions?.length ?? 0,
+    my_completion: myCompletion,
+    submissions,
+  } as DbPhotoChallenge;
+}
+
+export async function createPhotoChallenge(params: {
+  title: string;
+  description?: string;
+  pointsReward?: number;
+  deadline: string;
+  creatorId: string;
+}): Promise<{ id: string } | null> {
+  const { data, error } = await getSupabase()
+    .from("photo_challenges")
+    .insert({
+      creator_id: params.creatorId,
+      title: params.title,
+      description: params.description || null,
+      points_reward: params.pointsReward ?? 30,
+      deadline: params.deadline,
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("Error creating challenge:", error);
+    return null;
+  }
+  return data as { id: string };
+}
+
 // ─── Photo submissions ────────────────────────────────────────────────────────
 
 export async function getPhotoSubmissions(
@@ -282,7 +391,8 @@ export async function getPhotoSubmission(
     .select(`
       *,
       submitter:profiles!submitter_id(id, nickname, avatar_url),
-      votes:photo_votes(id, voter_id, approved, profiles(nickname, avatar_url))
+      votes:photo_votes(id, voter_id, approved, profiles(nickname, avatar_url)),
+      challenge:photo_challenges!challenge_id(id, title)
     `)
     .eq("id", id)
     .single();
@@ -304,6 +414,7 @@ export async function createPhotoSubmission(params: {
   file: File;
   caption: string;
   userId: string;
+  challengeId: string;
 }): Promise<string | null> {
   const sb = getSupabase();
   const ext = params.file.name.split(".").pop() ?? "jpg";
@@ -329,6 +440,7 @@ export async function createPhotoSubmission(params: {
       caption: params.caption.trim() || null,
       photo_url: publicUrl,
       storage_path: path,
+      challenge_id: params.challengeId,
     })
     .select("id")
     .single();
