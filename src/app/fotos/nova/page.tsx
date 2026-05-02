@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { Suspense, useRef, useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -10,7 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { createPhotoSubmission, getChallenge } from "@/lib/supabase/queries";
 import type { DbPhotoChallenge } from "@/lib/types";
 
-export default function NovaFotoPage() {
+function NovaFotoContent() {
   const { profile, loading } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -185,5 +185,19 @@ export default function NovaFotoPage() {
         </div>
       </main>
     </>
+  );
+}
+
+export default function NovaFotoPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex-1 flex items-center justify-center">
+          <p className="text-muted">Carregando...</p>
+        </main>
+      }
+    >
+      <NovaFotoContent />
+    </Suspense>
   );
 }
