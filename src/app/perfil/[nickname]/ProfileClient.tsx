@@ -270,20 +270,22 @@ export function ProfileClient({ nickname }: { nickname: string }) {
               <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
                 Conquistas
               </h3>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {achievements.map((a) => (
                   <div
                     key={a.key}
-                    title={a.unlocked_at ? a.title : a.description}
-                    className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-colors ${
+                    className={`flex flex-col items-center p-3 rounded-xl border transition-colors ${
                       a.unlocked_at
                         ? "border-accent/30 bg-accent/5"
                         : "border-border opacity-30"
                     }`}
                   >
-                    <span className="text-2xl">{a.icon}</span>
-                    <span className="text-[10px] text-center text-muted leading-tight">
+                    <span className="text-2xl mb-1">{a.icon}</span>
+                    <span className="text-[11px] text-center font-semibold leading-tight line-clamp-2 min-h-[2.5em]">
                       {a.title}
+                    </span>
+                    <span className="text-[10px] text-center text-muted leading-tight line-clamp-2 min-h-[2.5em] mt-1">
+                      {a.description}
                     </span>
                   </div>
                 ))}

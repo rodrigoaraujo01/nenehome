@@ -113,7 +113,6 @@ export default function NovaFotoPage() {
                 ref={inputRef}
                 type="file"
                 accept="image/*"
-                capture="environment"
                 onChange={handleFileChange}
                 className="hidden"
               />

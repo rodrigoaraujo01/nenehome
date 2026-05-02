@@ -54,7 +54,7 @@ function BetCard({ bet }: { bet: DbBet }) {
           )}
           <span>{bet.entries_count ?? 0} apostas</span>
           <span>·</span>
-          <span className="text-yellow-400 font-semibold">🪙 {bet.total_pot ?? 0}</span>
+          <span className="text-yellow-400 font-semibold">{bet.total_pot ?? 0}</span>
         </div>
 
         <div className="flex items-center justify-between">

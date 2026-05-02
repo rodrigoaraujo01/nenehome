@@ -205,6 +205,12 @@ begin
   values (v_user_id)
   on conflict (user_id) do nothing;
 
+  -- Grant initial 50 coins if user has no ledger entries yet
+  if not exists (select 1 from nenecoins_ledger where user_id = v_user_id) then
+    insert into nenecoins_ledger (user_id, amount, coin_type, tx_type, note)
+    values (v_user_id, 50, 'nenecoin', 'initial', 'Bônus de boas-vindas');
+  end if;
+
   select * into v_state from nenecoins_state where user_id = v_user_id;
   v_last_bonus := coalesce(v_state.last_weekly_bonus_at, v_state.created_at);
 

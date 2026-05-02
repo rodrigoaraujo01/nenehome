@@ -57,7 +57,7 @@ function OptionBar({
             <span className="text-[10px] text-accent font-bold uppercase">seu voto</span>
           )}
         </div>
-        <span className="text-xs text-muted">🪙 {optPot} ({pct}%)</span>
+        <span className="text-xs text-muted">{optPot} ({pct}%)</span>
       </div>
       <div className="h-1.5 bg-surface-light rounded-full overflow-hidden">
         <div
@@ -228,7 +228,7 @@ export default function ApostaDetailPage() {
             )}
             <div className="flex items-center gap-1 text-sm">
               <span className="text-muted">Pote:</span>
-              <span className="font-bold text-yellow-400">🪙 {totalPot}</span>
+              <span className="font-bold text-yellow-400">{totalPot}</span>
             </div>
             <div className="text-sm text-muted">
               {isResolved ? `Resolvida em ${formatDeadline(bet.resolved_at!)}` : `Até ${formatDeadline(bet.deadline)}`}
@@ -247,7 +247,7 @@ export default function ApostaDetailPage() {
                   : `${parseFloat(bet.result_value).toLocaleString("pt-BR")}${bet.unit ? " " + bet.unit : ""}`}
               </p>
               {totalPot > 0 && (
-                <p className="text-sm text-muted mt-1">{entries.filter((e) => e.is_winner).length} vencedor(es) dividiram 🪙 {totalPot}</p>
+                <p className="text-sm text-muted mt-1">{entries.filter((e) => e.is_winner).length} vencedor(es) dividiram {totalPot}</p>
               )}
             </div>
           )}
@@ -308,7 +308,7 @@ export default function ApostaDetailPage() {
                         </p>
                       </div>
                       {e.is_winner && (
-                        <span className="text-green font-bold text-sm">+{e.coins_won} 🪙</span>
+                        <span className="text-green font-bold text-sm">+{e.coins_won}</span>
                       )}
                     </div>
                   );
@@ -319,7 +319,7 @@ export default function ApostaDetailPage() {
                     ? `Seu palpite: ${bet.guess_kind === "date"
                         ? new Date(bet.my_entry.guess_value!).toLocaleDateString("pt-BR")
                         : `${parseFloat(bet.my_entry.guess_value!).toLocaleString("pt-BR")}${bet.unit ? " " + bet.unit : ""}`}
-                       · 🪙 ${bet.my_entry.coins_wagered}`
+                       · ${bet.my_entry.coins_wagered}`
                     : entries.length > 0
                     ? `${entries.length} aposta(s) feita(s). Os palpites serão revelados na resolução.`
                     : "Ninguém apostou ainda."}
@@ -334,7 +334,7 @@ export default function ApostaDetailPage() {
               <p className="font-semibold text-sm">Sua aposta</p>
 
               {balance !== null && (
-                <p className="text-xs text-muted">Saldo: 🪙 {balance.nenecoin_balance} nenecoins</p>
+                <p className="text-xs text-muted">Saldo: {balance.nenecoin_balance} nenecoins</p>
               )}
 
               {/* pool: pick option */}
@@ -391,14 +391,14 @@ export default function ApostaDetailPage() {
                     type="button"
                     onClick={() => setCoins((c) => Math.max(1, c - 5))}
                     className="w-9 h-9 rounded-full border border-border text-muted hover:border-accent/40 text-lg font-bold"
-                  >−</button>
+                  >-</button>
                   <input
                     type="number"
                     min={1}
                     max={balance?.nenecoin_balance ?? 9999}
                     value={coins}
                     onChange={(e) => setCoins(Math.max(1, parseInt(e.target.value) || 1))}
-                    className="flex-1 text-center bg-surface border border-border rounded-xl px-4 py-2 text-lg font-bold focus:outline-none focus:border-accent"
+                    className="flex-1 text-center bg-surface border border-border rounded-xl px-4 py-2 text-lg font-bold focus:outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                   />
                   <button
                     type="button"
@@ -429,7 +429,7 @@ export default function ApostaDetailPage() {
                   (balance !== null && coins > balance.nenecoin_balance)
                 }
               >
-                {submitting ? "Apostando..." : `Apostar 🪙 ${coins}`}
+                {submitting ? "Apostando..." : `Apostar ${coins}`}
               </Button>
             </form>
           )}
@@ -437,7 +437,7 @@ export default function ApostaDetailPage() {
           {/* my entry (already placed, not resolved) */}
           {bet.my_entry && !isResolved && (
             <div className="bg-accent/5 border border-accent/20 rounded-2xl p-4 text-sm">
-              <p className="font-semibold text-accent">✓ Você apostou 🪙 {bet.my_entry.coins_wagered}</p>
+              <p className="font-semibold text-accent">✓ Você apostou {bet.my_entry.coins_wagered}</p>
               {bet.type === "pool" && bet.my_entry.option_id && (
                 <p className="text-muted mt-0.5">
                   Em: {bet.options?.find((o) => o.id === bet.my_entry!.option_id)?.label}

@@ -157,9 +157,9 @@ export default function NovaPerguntaPage() {
                     <button
                       key={m.id}
                       type="button"
-                      onClick={() => setSubjectId(m.id)}
+                      onClick={() => setSubjectId(m.nickname)}
                       className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-colors ${
-                        subjectId === m.id
+                        subjectId === m.nickname
                           ? "border-accent bg-accent/10"
                           : "border-border hover:border-accent/40"
                       }`}
