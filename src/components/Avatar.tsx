@@ -10,8 +10,8 @@ interface AvatarProps {
 }
 
 export function Avatar({ spriteUrl, nickname, size = 128 }: AvatarProps) {
-  const resolved = spriteUrl
-    || MEMBERS.find((m) => m.nickname === nickname)?.spriteUrl
+  const resolved = MEMBERS.find((m) => m.nickname === nickname)?.spriteUrl
+    || spriteUrl
     || null;
 
   if (!resolved) {
