@@ -24,6 +24,7 @@ export default function NovApostaPage() {
   const [unit, setUnit] = useState("");
   const [deadline, setDeadline] = useState("");
   const [options, setOptions] = useState<PoolOption[]>([{ label: "" }, { label: "" }]);
+  const [creatorCanBet, setCreatorCanBet] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -46,7 +47,7 @@ export default function NovApostaPage() {
   }
 
   function validate(): string | null {
-    if (!title.trim()) return "Dê um nome para a aposta.";
+    if (!title.trim()) return "Dê um nome para o bolão.";
     if (!deadline) return "Defina um prazo.";
     if (new Date(deadline) <= new Date()) return "O prazo precisa ser no futuro.";
     if (type === "pool") {
@@ -70,11 +71,12 @@ export default function NovApostaPage() {
       unit: type === "closest_guess" && unit.trim() ? unit.trim() : undefined,
       deadline: new Date(deadline).toISOString(),
       options: type === "pool" ? options.filter((o) => o.label.trim()) : undefined,
+      creator_can_bet: creatorCanBet,
     });
 
     setSubmitting(false);
     if (!result) {
-      setError("Erro ao criar aposta. Tente novamente.");
+      setError("Erro ao criar bolão. Tente novamente.");
       return;
     }
     router.push(`/apostas/${result.id}`);
@@ -88,7 +90,7 @@ export default function NovApostaPage() {
           <div className="flex items-center gap-3 mb-6">
             <Link href="/apostas" className="flex items-center gap-3 text-muted hover:text-foreground transition-colors">
               <span>‹</span>
-              <h2 className="text-xl font-bold text-foreground">Nova aposta</h2>
+              <h2 className="text-xl font-bold text-foreground">Novo bolão</h2>
             </Link>
           </div>
 
@@ -102,7 +104,7 @@ export default function NovApostaPage() {
                   type === t ? "bg-accent text-white" : "text-muted hover:text-foreground"
                 }`}
               >
-                {t === "pool" ? "Pool" : "Bolão"}
+                {t === "pool" ? "Múltipla escolha" : "Palpite"}
               </button>
             ))}
           </div>
@@ -171,7 +173,7 @@ export default function NovApostaPage() {
             )}
 
             <div>
-              <label className="text-sm font-semibold text-muted block mb-1.5">Prazo para apostas</label>
+              <label className="text-sm font-semibold text-muted block mb-1.5">Prazo para palpites</label>
               <input
                 type="datetime-local"
                 value={deadline}
@@ -179,6 +181,18 @@ export default function NovApostaPage() {
                 className="w-full bg-surface border border-border rounded-xl px-4 py-3 text-foreground focus:outline-none focus:border-accent transition-colors"
               />
             </div>
+
+            <label className="flex items-center gap-3 cursor-pointer">
+              <div
+                role="switch"
+                aria-checked={creatorCanBet}
+                onClick={() => setCreatorCanBet((v) => !v)}
+                className={`relative w-11 h-6 rounded-full transition-colors ${creatorCanBet ? "bg-accent" : "bg-border"}`}
+              >
+                <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${creatorCanBet ? "translate-x-5" : ""}`} />
+              </div>
+              <span className="text-sm font-semibold text-muted">Criador pode participar</span>
+            </label>
 
             {type === "pool" && (
               <div>
@@ -223,7 +237,7 @@ export default function NovApostaPage() {
             {error && <p className="text-sm text-red-400">{error}</p>}
 
             <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting ? "Criando..." : "Criar aposta"}
+              {submitting ? "Criando..." : "Criar bolão"}
             </Button>
           </form>
         </div>

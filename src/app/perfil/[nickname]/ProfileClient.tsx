@@ -28,7 +28,7 @@ async function getProfileIdByNickname(nickname: string): Promise<string | null> 
 }
 
 export function ProfileClient({ nickname }: { nickname: string }) {
-  const { profile: currentUser } = useAuth();
+  const { profile: currentUser, signOut } = useAuth();
   const [stats, setStats] = useState<ProfileStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
   const [achievements, setAchievements] = useState<DbAchievement[]>([]);
@@ -265,20 +265,16 @@ export function ProfileClient({ nickname }: { nickname: string }) {
             </div>
           )}
 
-          {achievements.length > 0 && (
+          {achievements.filter((a) => a.unlocked_at).length > 0 && (
             <div className="w-full">
               <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
                 Conquistas
               </h3>
               <div className="grid grid-cols-3 gap-2">
-                {achievements.map((a) => (
+                {achievements.filter((a) => a.unlocked_at).map((a) => (
                   <div
                     key={a.key}
-                    className={`flex flex-col items-center p-3 rounded-xl border transition-colors ${
-                      a.unlocked_at
-                        ? "border-accent/30 bg-accent/5"
-                        : "border-border opacity-30"
-                    }`}
+                    className="flex flex-col items-center p-3 rounded-xl border border-accent/30 bg-accent/5"
                   >
                     <span className="text-2xl mb-1">{a.icon}</span>
                     <span className="text-[11px] text-center font-semibold leading-tight line-clamp-2 min-h-[2.5em]">
@@ -310,6 +306,15 @@ export function ProfileClient({ nickname }: { nickname: string }) {
                 ))}
               </div>
             </Card>
+          )}
+
+          {isOwnProfile && (
+            <button
+              onClick={signOut}
+              className="w-full bg-surface border border-border rounded-xl py-3 text-sm font-semibold text-red-400 hover:bg-red-400/10 hover:border-red-400/30 transition-colors"
+            >
+              Sair da conta
+            </button>
           )}
         </section>
       </main>

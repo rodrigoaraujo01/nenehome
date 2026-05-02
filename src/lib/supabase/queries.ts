@@ -608,15 +608,17 @@ export async function createBet(params: {
   unit?: string;
   deadline: string;
   options?: { label: string }[];
+  creator_can_bet?: boolean;
 }): Promise<{ id: string } | null> {
   const { data, error } = await getSupabase().rpc("create_bet", {
-    p_title:       params.title,
-    p_description: params.description ?? null,
-    p_type:        params.type,
-    p_guess_kind:  params.guess_kind ?? null,
-    p_unit:        params.unit ?? null,
-    p_deadline:    params.deadline,
-    p_options:     params.options ?? null,
+    p_title:           params.title,
+    p_description:     params.description ?? null,
+    p_type:            params.type,
+    p_guess_kind:      params.guess_kind ?? null,
+    p_unit:            params.unit ?? null,
+    p_deadline:        params.deadline,
+    p_options:         params.options ?? null,
+    p_creator_can_bet: params.creator_can_bet ?? true,
   });
   if (error) { console.error("createBet:", error); return null; }
   return data as { id: string };

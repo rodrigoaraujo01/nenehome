@@ -13,7 +13,7 @@ create table if not exists nenecoins_ledger (
   tx_type    text not null
                check (tx_type in (
                  'initial', 'weekly_bonus', 'points_conversion',
-                 'bet_placed', 'bet_won',
+                 'bet_placed', 'bet_won', 'bet_refund',
                  'gift_sent', 'gift_received',
                  'fire_conversion_out', 'fire_conversion_in'
                )),
@@ -52,8 +52,9 @@ create table if not exists bets (
   type         text not null check (type in ('pool', 'closest_guess')),
   guess_kind   text check (guess_kind in ('date', 'number')),
   unit         text,
-  deadline     timestamptz not null,
-  status       text not null default 'open' check (status in ('open', 'resolved')),
+  deadline        timestamptz not null,
+  creator_can_bet boolean not null default true,
+  status          text not null default 'open' check (status in ('open', 'resolved')),
   result_value text,
   resolved_by  uuid references profiles(id),
   resolved_at  timestamptz,
@@ -113,9 +114,9 @@ group by user_id;
 -- Seed: nenecoin achievements
 -- ─────────────────────────────────────────────
 insert into achievements (key, title, description, icon, points_reward, sort_order) values
-  ('nenecoin_first_bet',  'Primeira Aposta',   'Apostou nenecoins pela primeira vez',           '🎲', 5,  20),
-  ('nenecoin_first_win',  'Sortudo!',          'Venceu sua primeira aposta de nenecoins',        '🏆', 10, 21),
-  ('nenecoin_high_roller','High Roller',        'Venceu um pote de 100+ nenecoins',              '💰', 20, 22),
+  ('nenecoin_first_bet',  'Primeira Aposta',   'Participou de um bolão pela primeira vez',      '🎲', 5,  20),
+  ('nenecoin_first_win',  'Sortudo!',          'Venceu seu primeiro bolão',                     '🏆', 10, 21),
+  ('nenecoin_high_roller','High Roller',        'Venceu um montante de 100+ nenecoins',          '💰', 20, 22),
   ('nenecoin_generous',   'Generoso',          'Deu nenecoins para outro membro',               '🎁', 5,  23),
   ('nenecoin_beloved',    'Querido',           'Recebeu nenecoins de outro membro como presente','❤️', 5,  24),
   ('nenecoin_whale',      'Baleia',            'Acumulou 500 ou mais nenecoins',                '🐋', 15, 25),
@@ -409,13 +410,14 @@ $$;
 -- RPC: create_bet
 -- ─────────────────────────────────────────────
 create or replace function create_bet(
-  p_title       text,
-  p_description text        default null,
-  p_type        text        default 'pool',
-  p_guess_kind  text        default null,
-  p_unit        text        default null,
-  p_deadline    timestamptz default null,
-  p_options     json        default null
+  p_title          text,
+  p_description    text        default null,
+  p_type           text        default 'pool',
+  p_guess_kind     text        default null,
+  p_unit           text        default null,
+  p_deadline       timestamptz default null,
+  p_options        json        default null,
+  p_creator_can_bet boolean    default true
 )
 returns json
 language plpgsql
@@ -431,8 +433,8 @@ begin
     return json_build_object('error', 'Prazo inválido');
   end if;
 
-  insert into bets (creator_id, title, description, type, guess_kind, unit, deadline)
-  values (v_user_id, p_title, p_description, p_type, p_guess_kind, p_unit, p_deadline)
+  insert into bets (creator_id, title, description, type, guess_kind, unit, deadline, creator_can_bet)
+  values (v_user_id, p_title, p_description, p_type, p_guess_kind, p_unit, p_deadline, coalesce(p_creator_can_bet, true))
   returning id into v_bet_id;
 
   if p_type = 'pool' and p_options is not null then
@@ -469,9 +471,13 @@ declare
   v_a        json;
 begin
   select * into v_bet from bets where id = p_bet_id;
-  if not found                    then return json_build_object('error', 'Aposta não encontrada'); end if;
-  if v_bet.status != 'open'       then return json_build_object('error', 'Aposta já encerrada'); end if;
+  if not found                    then return json_build_object('error', 'Bolão não encontrado'); end if;
+  if v_bet.status != 'open'       then return json_build_object('error', 'Bolão já encerrado'); end if;
   if now() > v_bet.deadline       then return json_build_object('error', 'Prazo encerrado'); end if;
+
+  if v_bet.creator_id = v_user_id and not v_bet.creator_can_bet then
+    return json_build_object('error', 'O criador não pode apostar neste bolão');
+  end if;
 
   if exists (select 1 from bet_entries where bet_id = p_bet_id and user_id = v_user_id) then
     return json_build_object('error', 'Você já apostou nesse bolão');
@@ -493,7 +499,7 @@ begin
 
   insert into nenecoins_ledger (user_id, amount, coin_type, tx_type, ref_id, note)
   values (v_user_id, -p_coins, 'nenecoin', 'bet_placed', p_bet_id,
-    'Aposta: ' || v_bet.title);
+    'Bolão: ' || v_bet.title);
 
   insert into nenecoins_state (user_id, last_activity_at)
   values (v_user_id, now())
@@ -526,23 +532,23 @@ language plpgsql
 security definer
 as $$
 declare
-  v_user_id     uuid := auth.uid();
-  v_bet         bets%rowtype;
-  v_total_pot   integer;
+  v_user_id      uuid := auth.uid();
+  v_bet          bets%rowtype;
+  v_total_pot    integer;
   v_winner_count integer;
-  v_per_winner  integer;
-  v_remainder   integer;
-  v_entry       bet_entries%rowtype;
-  v_payout      integer;
-  v_min_dist    numeric;
-  v_new_bal     integer;
-  v_first       boolean := true;
+  v_winner_pot   integer;
+  v_distributed  integer;
+  v_entry        bet_entries%rowtype;
+  v_payout       integer;
+  v_remainder    integer;
+  v_min_dist     numeric;
+  v_new_bal      integer;
 begin
   select * into v_bet from bets where id = p_bet_id;
-  if not found             then return json_build_object('error', 'Aposta não encontrada'); end if;
-  if v_bet.status != 'open' then return json_build_object('error', 'Aposta já resolvida'); end if;
+  if not found             then return json_build_object('error', 'Bolão não encontrado'); end if;
+  if v_bet.status != 'open' then return json_build_object('error', 'Bolão já resolvido'); end if;
   if v_bet.creator_id != v_user_id then
-    return json_build_object('error', 'Apenas o criador pode resolver a aposta');
+    return json_build_object('error', 'Apenas o criador pode resolver o bolão');
   end if;
 
   select coalesce(sum(coins_wagered), 0) into v_total_pot
@@ -578,25 +584,24 @@ begin
   select count(*) into v_winner_count
   from bet_entries where bet_id = p_bet_id and is_winner = true;
 
-  -- Distribute pot
+  -- Distribute pot proportionally to each winner's wager
   if v_winner_count > 0 and v_total_pot > 0 then
-    v_per_winner := v_total_pot / v_winner_count;
-    v_remainder  := v_total_pot % v_winner_count;
+    select coalesce(sum(coins_wagered), 0) into v_winner_pot
+    from bet_entries where bet_id = p_bet_id and is_winner = true;
+
+    v_distributed := 0;
 
     for v_entry in
       select * from bet_entries where bet_id = p_bet_id and is_winner = true
     loop
-      v_payout := v_per_winner;
-      if v_first then
-        v_payout := v_payout + v_remainder;
-        v_first  := false;
-      end if;
+      v_payout := floor((v_entry.coins_wagered::numeric / v_winner_pot) * v_total_pot)::integer;
+      v_distributed := v_distributed + v_payout;
 
       update bet_entries set coins_won = v_payout where id = v_entry.id;
 
       insert into nenecoins_ledger (user_id, amount, coin_type, tx_type, ref_id, note)
       values (v_entry.user_id, v_payout, 'nenecoin', 'bet_won', p_bet_id,
-        'Ganhou aposta: ' || v_bet.title);
+        'Ganhou bolão: ' || v_bet.title);
 
       perform grant_achievement(v_entry.user_id, 'nenecoin_first_win');
       if v_payout >= 100 then
@@ -609,6 +614,26 @@ begin
         perform grant_achievement(v_entry.user_id, 'nenecoin_whale');
       end if;
     end loop;
+
+    -- Assign rounding remainder to first winner
+    v_remainder := v_total_pot - v_distributed;
+    if v_remainder > 0 then
+      select * into v_entry from bet_entries where bet_id = p_bet_id and is_winner = true limit 1;
+      update bet_entries set coins_won = coins_won + v_remainder where id = v_entry.id;
+      insert into nenecoins_ledger (user_id, amount, coin_type, tx_type, ref_id, note)
+      values (v_entry.user_id, v_remainder, 'nenecoin', 'bet_won', p_bet_id,
+        'Arredondamento bolão: ' || v_bet.title);
+    end if;
+
+  -- Pool with no winners: refund all participants
+  elsif v_winner_count = 0 and v_bet.type = 'pool' and v_total_pot > 0 then
+    for v_entry in
+      select * from bet_entries where bet_id = p_bet_id
+    loop
+      insert into nenecoins_ledger (user_id, amount, coin_type, tx_type, ref_id, note)
+      values (v_entry.user_id, v_entry.coins_wagered, 'nenecoin', 'bet_refund', p_bet_id,
+        'Reembolso: ' || v_bet.title || ' (sem vencedores)');
+    end loop;
   end if;
 
   update bets
@@ -616,6 +641,10 @@ begin
       resolved_by = v_user_id, resolved_at = now()
   where id = p_bet_id;
 
-  return json_build_object('winners', v_winner_count, 'pot', v_total_pot);
+  return json_build_object(
+    'winners', v_winner_count,
+    'pot', v_total_pot,
+    'refunded', v_winner_count = 0 and v_bet.type = 'pool'
+  );
 end;
 $$;

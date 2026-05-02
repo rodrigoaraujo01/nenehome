@@ -13,10 +13,10 @@ import type { DbBet, NenecoinBalance } from "@/lib/types";
 function BetTypeBadge({ bet }: { bet: DbBet }) {
   const label =
     bet.type === "pool"
-      ? "Pool"
+      ? "Múltipla escolha"
       : bet.guess_kind === "date"
-      ? "Bolão data"
-      : `Bolão número`;
+      ? "Data"
+      : "Número";
   const colors =
     bet.type === "pool"
       ? "bg-purple-500/15 text-purple-400"
@@ -52,7 +52,7 @@ function BetCard({ bet }: { bet: DbBet }) {
               <span>·</span>
             </>
           )}
-          <span>{bet.entries_count ?? 0} apostas</span>
+          <span>{bet.entries_count ?? 0} palpites</span>
           <span>·</span>
           <span className="text-yellow-400 font-semibold">{bet.total_pot ?? 0}</span>
         </div>
@@ -66,9 +66,9 @@ function BetCard({ bet }: { bet: DbBet }) {
             <span className="text-xs text-green font-semibold">✓ Resolvida</span>
           )}
           {bet.my_entry ? (
-            <span className="text-xs text-accent font-semibold">✓ Você apostou</span>
+            <span className="text-xs text-accent font-semibold">✓ Você participou</span>
           ) : bet.status === "open" ? (
-            <span className="text-xs text-muted">Apostar ›</span>
+            <span className="text-xs text-muted">Participar ›</span>
           ) : null}
         </div>
       </div>
@@ -114,7 +114,7 @@ export default function ApostasPage() {
         <div className="max-w-lg mx-auto space-y-6">
           {/* header row */}
           <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold">Apostas</h2>
+            <h2 className="text-xl font-bold">Bolões</h2>
             <Link
               href="/apostas/nova"
               className="bg-accent text-white text-sm font-semibold px-4 py-2 rounded-xl hover:opacity-90 transition-opacity"
@@ -160,8 +160,8 @@ export default function ApostasPage() {
           {bets.length === 0 && (
             <div className="text-center py-16 text-muted">
               <p className="text-4xl mb-3">🎲</p>
-              <p className="font-semibold">Nenhuma aposta ainda</p>
-              <p className="text-sm mt-1">Crie a primeira!</p>
+              <p className="font-semibold">Nenhum bolão ainda</p>
+              <p className="text-sm mt-1">Crie o primeiro!</p>
             </div>
           )}
         </div>

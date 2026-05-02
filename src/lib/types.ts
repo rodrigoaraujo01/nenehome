@@ -233,6 +233,7 @@ export interface DbBet {
   guess_kind: "date" | "number" | null;
   unit: string | null;
   deadline: string;
+  creator_can_bet: boolean;
   status: "open" | "resolved";
   result_value: string | null;
   resolved_at: string | null;
@@ -256,5 +257,6 @@ export interface PlaceBetResult {
 export interface ResolveBetResult {
   winners?: number;
   pot?: number;
+  refunded?: boolean;
   error?: string;
 }

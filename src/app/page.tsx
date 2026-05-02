@@ -18,7 +18,7 @@ const mockQuests = [
 ];
 
 export default function Home() {
-  const { profile, loading, signOut } = useAuth();
+  const { profile, loading } = useAuth();
   const router = useRouter();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [balance, setBalance] = useState<NenecoinBalance | null>(null);
@@ -201,12 +201,12 @@ export default function Home() {
             <h2 className="text-sm font-bold text-muted uppercase tracking-wider mb-3">
               O grupo
             </h2>
-            <div className="flex gap-4 overflow-x-auto pb-2">
+            <div className="grid grid-cols-4 gap-4">
               {ADULTS.map((m) => (
                 <Link
                   key={m.id}
                   href={`/perfil/${m.nickname.toLowerCase()}`}
-                  className="flex flex-col items-center gap-1.5 shrink-0 hover:opacity-80 transition-opacity"
+                  className="flex flex-col items-center gap-1.5 hover:opacity-80 transition-opacity"
                 >
                   <Avatar
                     spriteUrl={m.spriteUrl}
@@ -219,12 +219,6 @@ export default function Home() {
             </div>
           </section>
 
-          <button
-            onClick={signOut}
-            className="text-sm text-muted hover:text-foreground transition-colors"
-          >
-            Sair
-          </button>
         </div>
       </main>
     </>
