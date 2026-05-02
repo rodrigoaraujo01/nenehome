@@ -69,7 +69,7 @@ export function BottomNav() {
     { href: "/",         label: "Início",    icon: HomeIcon,      active: pathname === "/" },
     { href: "/perguntas",label: "Perguntas", icon: QuestionsIcon, active: pathname.startsWith("/perguntas") },
     { href: "/fotos",    label: "Fotos",     icon: PhotosIcon,    active: pathname.startsWith("/fotos") },
-    { href: "/apostas",  label: "Apostas",   icon: BetsIcon,      active: pathname.startsWith("/apostas") },
+    { href: "/apostas",  label: "Bolões",    icon: BetsIcon,      active: pathname.startsWith("/apostas") },
     { href: profileHref, label: "Perfil",    icon: ProfileIcon,   active: pathname.startsWith("/perfil") },
   ];
 

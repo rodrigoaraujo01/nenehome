@@ -1,17 +1,20 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useRef, useState, useEffect } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { Header } from "@/components/Header";
 import { Button } from "@/components/ui/Button";
 import { useAuth } from "@/hooks/useAuth";
-import { createPhotoSubmission } from "@/lib/supabase/queries";
+import { createPhotoSubmission, getChallenge } from "@/lib/supabase/queries";
+import type { DbPhotoChallenge } from "@/lib/types";
 
 export default function NovaFotoPage() {
   const { profile, loading } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const challengeId = searchParams.get("challenge_id");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [file, setFile] = useState<File | null>(null);
@@ -19,8 +22,18 @@ export default function NovaFotoPage() {
   const [caption, setCaption] = useState("");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [challenge, setChallenge] = useState<DbPhotoChallenge | null>(null);
 
-  if (loading) {
+  useEffect(() => {
+    if (!loading && !challengeId) router.push("/fotos");
+  }, [loading, challengeId, router]);
+
+  useEffect(() => {
+    if (!challengeId || !profile) return;
+    getChallenge(challengeId, profile.id).then(setChallenge);
+  }, [challengeId, profile]);
+
+  if (loading || !challengeId) {
     return (
       <main className="flex-1 flex items-center justify-center">
         <p className="text-muted">Carregando...</p>
@@ -54,6 +67,7 @@ export default function NovaFotoPage() {
       file,
       caption,
       userId: profile.id,
+      challengeId: challengeId!,
     });
 
     if (!id) {
@@ -62,7 +76,7 @@ export default function NovaFotoPage() {
       return;
     }
 
-    router.push(`/fotos/${id}`);
+    router.push(challengeId ? `/fotos/desafios/${challengeId}` : `/fotos/${id}`);
   }
 
   return (
@@ -71,13 +85,28 @@ export default function NovaFotoPage() {
       <main className="flex-1 px-6 py-8">
         <div className="max-w-lg mx-auto">
           <div className="flex items-center gap-3 mb-6">
-            <Link href="/fotos" className="flex items-center gap-3 text-muted hover:text-foreground transition-colors">
+            <Link href={challengeId ? `/fotos/desafios/${challengeId}` : "/fotos"} className="flex items-center gap-3 text-muted hover:text-foreground transition-colors">
               <span>‹</span>
               <h2 className="text-xl font-bold text-foreground">Enviar foto</h2>
             </Link>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">
+            {challenge && (
+              <div className="bg-accent/10 border border-accent/30 rounded-2xl p-4">
+                <p className="text-xs font-bold text-accent uppercase tracking-wider mb-1">
+                  Desafio
+                </p>
+                <p className="font-semibold text-sm">{challenge.title}</p>
+                {challenge.description && (
+                  <p className="text-xs text-muted mt-1">{challenge.description}</p>
+                )}
+                <p className="text-xs text-muted mt-2">
+                  +{challenge.points_reward} pts extras se aprovada
+                </p>
+              </div>
+            )}
+
             {/* photo picker */}
             <div>
               {preview ? (
@@ -134,8 +163,13 @@ export default function NovaFotoPage() {
 
             <p className="text-xs text-muted">
               O grupo vai votar para aprovar. Você ganha{" "}
-              <span className="text-accent font-semibold">+20 pts</span> se
-              aprovada.
+              <span className="text-accent font-semibold">+20 pts</span>
+              {challenge && (
+                <>
+                  {" "}+ <span className="text-accent font-semibold">+{challenge.points_reward} pts</span> do desafio
+                </>
+              )}{" "}
+              se aprovada.
             </p>
 
             {error && <p className="text-sm text-red-400">{error}</p>}

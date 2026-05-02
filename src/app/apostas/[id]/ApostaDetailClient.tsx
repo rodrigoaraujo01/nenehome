@@ -124,7 +124,7 @@ export default function ApostaDetailPage() {
       <>
         <Header />
         <main className="flex-1 flex items-center justify-center">
-          <p className="text-muted">Aposta não encontrada.</p>
+          <p className="text-muted">Bolão não encontrado.</p>
         </main>
       </>
     );
@@ -133,7 +133,8 @@ export default function ApostaDetailPage() {
   const isCreator = bet.creator_id === profile.id;
   const isResolved = bet.status === "resolved";
   const isPastDeadline = new Date(bet.deadline) < new Date();
-  const canEnter = !isResolved && !isPastDeadline && !bet.my_entry;
+  const canEnter = !isResolved && !isPastDeadline && !bet.my_entry
+    && !(isCreator && !bet.creator_can_bet);
   const entries = bet.entries ?? [];
   const totalPot = bet.total_pot ?? 0;
 
@@ -202,11 +203,9 @@ export default function ApostaDetailPage() {
         <div className="max-w-lg mx-auto space-y-5">
           {/* back + status */}
           <div className="flex items-center gap-3">
-            <Link href="/apostas" className="flex items-center gap-2 text-muted hover:text-foreground transition-colors">
+            <Link href="/apostas" className="flex items-center gap-3 text-muted hover:text-foreground transition-colors">
               <span>‹</span>
-              <span className={`text-sm font-bold ${isResolved ? "text-green" : isPastDeadline ? "text-red-400" : "text-yellow-400"}`}>
-                {isResolved ? "✓ Resolvida" : isPastDeadline ? "Prazo encerrado" : "Aberta"}
-              </span>
+              <span className="text-sm font-bold text-foreground">Bolões</span>
             </Link>
           </div>
 
@@ -227,7 +226,7 @@ export default function ApostaDetailPage() {
               </div>
             )}
             <div className="flex items-center gap-1 text-sm">
-              <span className="text-muted">Pote:</span>
+              <span className="text-muted">Montante:</span>
               <span className="font-bold text-yellow-400">{totalPot}</span>
             </div>
             <div className="text-sm text-muted">
@@ -247,7 +246,13 @@ export default function ApostaDetailPage() {
                   : `${parseFloat(bet.result_value).toLocaleString("pt-BR")}${bet.unit ? " " + bet.unit : ""}`}
               </p>
               {totalPot > 0 && (
-                <p className="text-sm text-muted mt-1">{entries.filter((e) => e.is_winner).length} vencedor(es) dividiram {totalPot}</p>
+                <p className="text-sm text-muted mt-1">
+                  {entries.filter((e) => e.is_winner).length > 0
+                    ? `${entries.filter((e) => e.is_winner).length} vencedor(es) dividiram ${totalPot}`
+                    : bet.type === "pool"
+                    ? "Nenhum vencedor — palpites reembolsados"
+                    : "Nenhum vencedor"}
+                </p>
               )}
             </div>
           )}
@@ -274,7 +279,7 @@ export default function ApostaDetailPage() {
           {bet.type === "closest_guess" && (
             <div className="space-y-2">
               <p className="text-xs font-bold text-muted uppercase tracking-wider">
-                Palpites {isResolved ? "" : `(${entries.length} apostas — revelados na resolução)`}
+                Palpites {isResolved ? "" : `(${entries.length} palpites — revelados na resolução)`}
               </p>
               {isResolved ? (
                 sortedEntries.map((e, i) => {
@@ -321,8 +326,8 @@ export default function ApostaDetailPage() {
                         : `${parseFloat(bet.my_entry.guess_value!).toLocaleString("pt-BR")}${bet.unit ? " " + bet.unit : ""}`}
                        · ${bet.my_entry.coins_wagered}`
                     : entries.length > 0
-                    ? `${entries.length} aposta(s) feita(s). Os palpites serão revelados na resolução.`
-                    : "Ninguém apostou ainda."}
+                    ? `${entries.length} palpite(s). Serão revelados na resolução.`
+                    : "Ninguém participou ainda."}
                 </div>
               )}
             </div>
@@ -331,7 +336,7 @@ export default function ApostaDetailPage() {
           {/* entry form */}
           {canEnter && (
             <form onSubmit={handlePlaceBet} className="bg-surface border border-border rounded-2xl p-4 space-y-4 overflow-hidden">
-              <p className="font-semibold text-sm">Sua aposta</p>
+              <p className="font-semibold text-sm">Seu palpite</p>
 
               {balance !== null && (
                 <p className="text-xs text-muted">Saldo: {balance.nenecoin_balance} nenecoins</p>
@@ -429,7 +434,7 @@ export default function ApostaDetailPage() {
                   (balance !== null && coins > balance.nenecoin_balance)
                 }
               >
-                {submitting ? "Apostando..." : `Apostar ${coins}`}
+                {submitting ? "Enviando..." : `Confirmar ${coins}`}
               </Button>
             </form>
           )}
@@ -437,7 +442,7 @@ export default function ApostaDetailPage() {
           {/* my entry (already placed, not resolved) */}
           {bet.my_entry && !isResolved && (
             <div className="bg-accent/5 border border-accent/20 rounded-2xl p-4 text-sm">
-              <p className="font-semibold text-accent">✓ Você apostou {bet.my_entry.coins_wagered}</p>
+              <p className="font-semibold text-accent">✓ Você participou com {bet.my_entry.coins_wagered}</p>
               {bet.type === "pool" && bet.my_entry.option_id && (
                 <p className="text-muted mt-0.5">
                   Em: {bet.options?.find((o) => o.id === bet.my_entry!.option_id)?.label}
@@ -449,7 +454,7 @@ export default function ApostaDetailPage() {
           {/* resolve section (creator only, open bet) */}
           {isCreator && !isResolved && (
             <form onSubmit={handleResolve} className="border-t border-border pt-5 space-y-4">
-              <p className="text-sm font-semibold text-muted">Resolver aposta</p>
+              <p className="text-sm font-semibold text-muted">Resolver bolão</p>
 
               {bet.type === "pool" && bet.options && (
                 <div className="space-y-2">

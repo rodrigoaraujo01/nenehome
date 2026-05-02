@@ -13,18 +13,6 @@ import { getPhotoSubmission, voteOnSubmission } from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
 import type { DbPhotoSubmission, VoteResult, UnlockedAchievement } from "@/lib/types";
 
-const STATUS_LABEL = {
-  pending: "Votação aberta",
-  approved: "Aprovada ✓",
-  rejected: "Rejeitada",
-} as const;
-
-const STATUS_STYLE = {
-  pending: "text-yellow-400",
-  approved: "text-green",
-  rejected: "text-red-400",
-} as const;
-
 export default function FotoDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { profile, loading } = useAuth();
@@ -109,14 +97,10 @@ export default function FotoDetailPage() {
       <Header />
       <main className="flex-1 px-6 py-8">
         <div className="max-w-lg mx-auto space-y-5">
-          <div className="flex items-center gap-3">
-            <Link href="/fotos" className="text-muted hover:text-foreground transition-colors">
-              ‹
-            </Link>
-            <span className={`text-sm font-bold ${STATUS_STYLE[currentStatus]}`}>
-              {STATUS_LABEL[currentStatus]}
-            </span>
-          </div>
+          <Link href="/fotos" className="flex items-center gap-3 text-muted hover:text-foreground transition-colors">
+            <span>‹</span>
+            <span className="text-sm font-bold text-foreground">Fotos</span>
+          </Link>
 
           {/* photo */}
           <div className="relative aspect-square w-full rounded-2xl overflow-hidden bg-surface-light">
@@ -128,6 +112,19 @@ export default function FotoDetailPage() {
               unoptimized
             />
           </div>
+
+          {/* challenge badge */}
+          {submission.challenge && (
+            <Link
+              href={`/fotos/desafios/${submission.challenge.id}`}
+              className="flex items-center gap-2 bg-accent/10 border border-accent/30 rounded-xl px-3 py-2 hover:bg-accent/15 transition-colors"
+            >
+              <span className="text-sm">🎯</span>
+              <span className="text-sm font-semibold text-accent">
+                {submission.challenge.title}
+              </span>
+            </Link>
+          )}
 
           {/* submitter + caption */}
           <div className="flex items-start gap-3">

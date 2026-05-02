@@ -112,6 +112,33 @@ export interface ProfileStats {
   }[];
 }
 
+// ─── Photo challenges ──────────────────────────────────────────────────────────
+
+export interface DbPhotoChallengeCompletion {
+  id: string;
+  challenge_id: string;
+  user_id: string;
+  submission_id: string;
+  completed_at: string;
+  user?: DbProfile;
+}
+
+export interface DbPhotoChallenge {
+  id: string;
+  creator_id: string;
+  title: string;
+  description: string | null;
+  points_reward: number;
+  starts_at: string;
+  deadline: string;
+  created_at: string;
+  creator?: DbProfile;
+  completions?: DbPhotoChallengeCompletion[];
+  submissions?: DbPhotoSubmission[];
+  completion_count?: number;
+  my_completion?: DbPhotoChallengeCompletion | null;
+}
+
 // ─── Photo submissions ─────────────────────────────────────────────────────────
 
 export interface DbPhotoVote {
@@ -131,6 +158,7 @@ export interface DbPhotoSubmission {
   status: "pending" | "approved" | "rejected";
   points_reward: number;
   votes_to_approve: number;
+  challenge_id: string | null;
   created_at: string;
   // joined
   submitter?: DbProfile;
@@ -138,6 +166,7 @@ export interface DbPhotoSubmission {
   approve_count?: number;
   reject_count?: number;
   my_vote?: boolean | null;
+  challenge?: DbPhotoChallenge | null;
 }
 
 export interface VoteResult {
@@ -204,6 +233,7 @@ export interface DbBet {
   guess_kind: "date" | "number" | null;
   unit: string | null;
   deadline: string;
+  creator_can_bet: boolean;
   status: "open" | "resolved";
   result_value: string | null;
   resolved_at: string | null;
@@ -227,5 +257,6 @@ export interface PlaceBetResult {
 export interface ResolveBetResult {
   winners?: number;
   pot?: number;
+  refunded?: boolean;
   error?: string;
 }

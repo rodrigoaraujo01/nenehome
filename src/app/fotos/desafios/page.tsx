@@ -4,16 +4,14 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/Header";
-import { PhotoCard } from "@/components/PhotoCard";
 import { ChallengeCard } from "@/components/ChallengeCard";
 import { useAuth } from "@/hooks/useAuth";
-import { getPhotoSubmissions, getChallenges } from "@/lib/supabase/queries";
-import type { DbPhotoSubmission, DbPhotoChallenge } from "@/lib/types";
+import { getChallenges } from "@/lib/supabase/queries";
+import type { DbPhotoChallenge } from "@/lib/types";
 
-export default function FotosPage() {
+export default function DesafiosPage() {
   const { profile, loading } = useAuth();
   const router = useRouter();
-  const [submissions, setSubmissions] = useState<DbPhotoSubmission[]>([]);
   const [challenges, setChallenges] = useState<DbPhotoChallenge[]>([]);
   const [fetching, setFetching] = useState(true);
 
@@ -23,11 +21,7 @@ export default function FotosPage() {
 
   useEffect(() => {
     if (!profile) return;
-    Promise.all([
-      getPhotoSubmissions(profile.id),
-      getChallenges(profile.id),
-    ]).then(([s, c]) => {
-      setSubmissions(s);
+    getChallenges(profile.id).then((c) => {
       setChallenges(c);
       setFetching(false);
     });
@@ -41,13 +35,9 @@ export default function FotosPage() {
     );
   }
 
-  const pending = submissions.filter((s) => s.status === "pending");
-  const approved = submissions.filter((s) => s.status === "approved");
   const now = new Date();
-  const activeChallenges = challenges.filter((c) => new Date(c.deadline) >= now);
-  const expiredChallenges = challenges.filter((c) => new Date(c.deadline) < now);
-
-  const hasContent = activeChallenges.length > 0 || pending.length > 0 || approved.length > 0 || expiredChallenges.length > 0;
+  const active = challenges.filter((c) => new Date(c.deadline) >= now);
+  const expired = challenges.filter((c) => new Date(c.deadline) < now);
 
   return (
     <>
@@ -55,17 +45,20 @@ export default function FotosPage() {
       <main className="flex-1 px-6 py-8">
         <div className="max-w-lg mx-auto">
           <div className="flex items-center justify-between mb-6">
-            <div>
-              <h2 className="text-xl font-bold">Fotos</h2>
-              <p className="text-sm text-muted mt-0.5">
-                Desafios fotográficos e votação
-              </p>
-            </div>
+            <Link href="/fotos" className="flex items-center gap-3 text-muted hover:text-foreground transition-colors">
+              <span>‹</span>
+              <div>
+                <h2 className="text-xl font-bold text-foreground">Desafios</h2>
+                <p className="text-sm text-muted mt-0.5">
+                  Missões fotográficas com prazo
+                </p>
+              </div>
+            </Link>
             <Link
               href="/fotos/desafios/novo"
               className="bg-accent hover:bg-accent-hover text-white text-sm font-bold px-4 py-2 rounded-xl transition-colors"
             >
-              + Desafio
+              + Novo
             </Link>
           </div>
 
@@ -78,7 +71,7 @@ export default function FotosPage() {
                 />
               ))}
             </div>
-          ) : !hasContent ? (
+          ) : challenges.length === 0 ? (
             <div className="text-center py-16">
               <p className="text-4xl mb-4">🎯</p>
               <p className="font-semibold">Nenhum desafio ainda</p>
@@ -88,13 +81,13 @@ export default function FotosPage() {
             </div>
           ) : (
             <div className="space-y-8">
-              {activeChallenges.length > 0 && (
+              {active.length > 0 && (
                 <section>
                   <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
-                    Desafios ativos ({activeChallenges.length})
+                    Ativos ({active.length})
                   </h3>
                   <div className="space-y-3">
-                    {activeChallenges.map((c) => (
+                    {active.map((c) => (
                       <ChallengeCard
                         key={c.id}
                         challenge={c}
@@ -105,47 +98,13 @@ export default function FotosPage() {
                 </section>
               )}
 
-              {pending.length > 0 && (
+              {expired.length > 0 && (
                 <section>
                   <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
-                    Votação aberta ({pending.length})
-                  </h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    {pending.map((s) => (
-                      <PhotoCard
-                        key={s.id}
-                        submission={s}
-                        currentUserId={profile.id}
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {approved.length > 0 && (
-                <section>
-                  <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
-                    Aprovadas ({approved.length})
-                  </h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    {approved.map((s) => (
-                      <PhotoCard
-                        key={s.id}
-                        submission={s}
-                        currentUserId={profile.id}
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {expiredChallenges.length > 0 && (
-                <section>
-                  <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
-                    Desafios expirados ({expiredChallenges.length})
+                    Expirados ({expired.length})
                   </h3>
                   <div className="space-y-3">
-                    {expiredChallenges.map((c) => (
+                    {expired.map((c) => (
                       <ChallengeCard
                         key={c.id}
                         challenge={c}

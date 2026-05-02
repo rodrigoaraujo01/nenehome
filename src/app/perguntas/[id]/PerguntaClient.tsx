@@ -110,17 +110,10 @@ export default function PerguntaPage() {
       <Header />
       <main className="flex-1 px-6 py-8">
         <div className="max-w-lg mx-auto space-y-6">
-          <div className="flex items-center gap-3">
-            <Link
-              href="/perguntas"
-              className="text-muted hover:text-foreground transition-colors"
-            >
-              ‹
-            </Link>
-            <span className="text-xs font-bold uppercase tracking-wider text-muted">
-              {question.type === "story" ? "História" : "Múltipla escolha"}
-            </span>
-          </div>
+          <Link href="/perguntas" className="flex items-center gap-3 text-muted hover:text-foreground transition-colors">
+            <span>‹</span>
+            <span className="text-sm font-bold text-foreground">Perguntas</span>
+          </Link>
 
           {/* creator */}
           {question.creator && (

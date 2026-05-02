@@ -50,6 +50,11 @@ export function PhotoCard({ submission, currentUserId }: PhotoCardProps) {
           >
             {STATUS_LABEL[submission.status]}
           </span>
+          {submission.challenge_id && (
+            <span className="absolute top-3 left-3 text-xs font-bold px-2 py-1 rounded-full bg-accent/20 text-accent">
+              🎯
+            </span>
+          )}
         </div>
 
         <div className="p-4 space-y-3">
