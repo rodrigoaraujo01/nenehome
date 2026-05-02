@@ -27,7 +27,7 @@ export default function RootLayout({
           (function() {
             var q = window.location.search;
             if (q && q[1] === 'p') {
-              var path = q.slice(3).replace(/~and~/g, '&');
+              var path = q.slice(3).replace(/^\//, '').replace(/~and~/g, '&');
               var extra = q.indexOf('&q=') !== -1
                 ? '?' + q.slice(q.indexOf('&q=') + 3).replace(/~and~/g, '&')
                 : '';
