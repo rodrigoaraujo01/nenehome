@@ -104,10 +104,10 @@ export default function NovaPerguntaPage() {
       <main className="flex-1 px-6 py-8">
         <div className="max-w-lg mx-auto">
           <div className="flex items-center gap-3 mb-6">
-            <Link href="/perguntas" className="text-muted hover:text-foreground transition-colors">
-              ←
+            <Link href="/perguntas" className="flex items-center gap-3 text-muted hover:text-foreground transition-colors">
+              <span>‹</span>
+              <h2 className="text-xl font-bold text-foreground">Nova pergunta</h2>
             </Link>
-            <h2 className="text-xl font-bold">Nova pergunta</h2>
           </div>
 
           {/* type toggle */}

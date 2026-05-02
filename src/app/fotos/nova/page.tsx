@@ -71,10 +71,10 @@ export default function NovaFotoPage() {
       <main className="flex-1 px-6 py-8">
         <div className="max-w-lg mx-auto">
           <div className="flex items-center gap-3 mb-6">
-            <Link href="/fotos" className="text-muted hover:text-foreground transition-colors">
-              ←
+            <Link href="/fotos" className="flex items-center gap-3 text-muted hover:text-foreground transition-colors">
+              <span>‹</span>
+              <h2 className="text-xl font-bold text-foreground">Enviar foto</h2>
             </Link>
-            <h2 className="text-xl font-bold">Enviar foto</h2>
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-5">

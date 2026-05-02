@@ -101,9 +101,9 @@ export default function Home() {
             >
               <div>
                 <p className="font-bold">Perguntas</p>
-                <p className="text-xs text-muted mt-0.5">Responda e pontuе</p>
+                <p className="text-xs text-muted mt-0.5">Responda e pontue</p>
               </div>
-              <span className="text-accent">→</span>
+              <span className="text-accent text-lg">›</span>
             </Link>
             <Link
               href="/fotos"
@@ -113,7 +113,7 @@ export default function Home() {
                 <p className="font-bold">Fotos</p>
                 <p className="text-xs text-muted mt-0.5">Vote e envie</p>
               </div>
-              <span className="text-purple">→</span>
+              <span className="text-purple text-lg">›</span>
             </Link>
           </div>
 

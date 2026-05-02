@@ -115,7 +115,7 @@ export default function PerguntaPage() {
               href="/perguntas"
               className="text-muted hover:text-foreground transition-colors"
             >
-              ←
+              ‹
             </Link>
             <span className="text-xs font-bold uppercase tracking-wider text-muted">
               {question.type === "story" ? "História" : "Múltipla escolha"}
@@ -290,7 +290,7 @@ export default function PerguntaPage() {
               href="/perguntas"
               className="block text-center text-sm text-accent hover:text-accent-hover transition-colors"
             >
-              ← Voltar para perguntas
+              ‹ Voltar para perguntas
             </Link>
           )}
         </div>

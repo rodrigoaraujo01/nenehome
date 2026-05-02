@@ -202,7 +202,7 @@ export default function ApostaDetailPage() {
         <div className="max-w-lg mx-auto space-y-5">
           {/* back + status */}
           <div className="flex items-center gap-3">
-            <Link href="/apostas" className="text-muted hover:text-foreground transition-colors">←</Link>
+            <Link href="/apostas" className="text-muted hover:text-foreground transition-colors">‹</Link>
             <span className={`text-sm font-bold ${isResolved ? "text-green" : isPastDeadline ? "text-red-400" : "text-yellow-400"}`}>
               {isResolved ? "✓ Resolvida" : isPastDeadline ? "Prazo encerrado" : "Aberta"}
             </span>
