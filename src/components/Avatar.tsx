@@ -31,7 +31,7 @@ export function Avatar({ spriteUrl, nickname, size = 128 }: AvatarProps) {
       alt={`Avatar de ${nickname}`}
       width={size}
       height={size}
-      className="rounded-full object-cover"
+      className="rounded-full object-cover bg-surface-light"
       style={{ width: size, height: size }}
     />
   );
