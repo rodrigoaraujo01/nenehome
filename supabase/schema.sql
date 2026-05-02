@@ -33,8 +33,8 @@ create table if not exists questions (
   creator_id       uuid not null references profiles(id),
   type             text not null check (type in ('story', 'multiple_choice')),
   content          text not null,
-  -- for 'story': who the story is about (revealed after answering)
-  subject_id       uuid references profiles(id),
+  -- for 'story': nickname of who the story is about
+  subject_id       text,
   status           text not null default 'active' check (status in ('active', 'closed')),
   points_creator   int  not null default 5,
   points_correct   int  not null default 10,
@@ -82,7 +82,7 @@ create table if not exists answers (
   question_id         uuid not null references questions(id),
   user_id             uuid not null references profiles(id),
   selected_option_id  uuid references question_options(id),
-  subject_guess_id    uuid references profiles(id),
+  subject_guess_id    text,
   is_correct          boolean not null,
   created_at          timestamptz default now(),
   unique (question_id, user_id)
@@ -151,7 +151,7 @@ create or replace view member_points as
 create or replace function submit_answer(
   p_question_id        uuid,
   p_selected_option_id uuid default null,
-  p_subject_guess_id   uuid default null
+  p_subject_guess_id   text default null
 )
 returns json
 language plpgsql
@@ -175,11 +175,12 @@ begin
 
   -- determine correctness
   if v_question.type = 'multiple_choice' then
-    select is_correct into v_is_correct
+    select coalesce(is_correct, false) into v_is_correct
       from question_options
       where id = p_selected_option_id and question_id = p_question_id;
+    if not found then v_is_correct := false; end if;
   elsif v_question.type = 'story' then
-    v_is_correct := (p_subject_guess_id = v_question.subject_id);
+    v_is_correct := coalesce(p_subject_guess_id = v_question.subject_id, false);
   end if;
 
   -- insert answer
@@ -208,7 +209,7 @@ $$;
 create or replace function create_question(
   p_type       text,
   p_content    text,
-  p_subject_id uuid default null,
+  p_subject_id text default null,
   p_options    json default null   -- [{text, is_correct}, ...]
 )
 returns uuid

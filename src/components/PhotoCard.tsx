@@ -75,25 +75,25 @@ export function PhotoCard({ submission, currentUserId }: PhotoCardProps) {
           {/* vote progress */}
           {submission.status === "pending" && (
             <div className="space-y-1.5">
-              <div className="flex justify-between text-xs text-muted">
-                <span>
-                  {canVote
-                    ? "Seu voto faz diferença"
-                    : voted
-                    ? `Você ${submission.my_vote ? "aprovou" : "rejeitou"}`
-                    : isOwn
-                    ? "Aguardando votos"
-                    : ""}
+              <p className="text-xs text-muted">
+                {canVote
+                  ? "Seu voto faz diferença"
+                  : voted
+                  ? `Você ${submission.my_vote ? "aprovou" : "rejeitou"}`
+                  : isOwn
+                  ? "Aguardando votos"
+                  : ""}
+              </p>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 h-1.5 bg-surface-light rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-accent rounded-full transition-all"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <span className="text-xs text-muted shrink-0">
+                  {approveCount}/{threshold}
                 </span>
-                <span>
-                  {approveCount}/{threshold} aprovações
-                </span>
-              </div>
-              <div className="h-1.5 bg-surface-light rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-accent rounded-full transition-all"
-                  style={{ width: `${progress}%` }}
-                />
               </div>
             </div>
           )}

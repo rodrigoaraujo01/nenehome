@@ -43,7 +43,7 @@ export default function PerguntaPage() {
   useEffect(() => {
     if (question?.my_answer) {
       setSelectedOptionId(question.my_answer.selected_option_id);
-      setSelectedSubjectId(question.my_answer.subject_guess_id);
+      setSelectedSubjectId(question.my_answer.subject_guess_id ?? null);
     }
   }, [question]);
 
@@ -96,10 +96,10 @@ export default function PerguntaPage() {
       ? !!selectedOptionId
       : !!selectedSubjectId);
 
-  // for story: which member matches the subject_id
+  // for story: which member matches the subject_id (stored as nickname)
   const correctSubject =
     question.type === "story" && question.subject_id
-      ? ADULTS.find((m) => m.id === question.subject_id)
+      ? ADULTS.find((m) => m.nickname === question.subject_id)
       : null;
 
   const showReveal = alreadyAnswered || !!result;
@@ -231,14 +231,14 @@ export default function PerguntaPage() {
                   Quem você acha que é?
                 </p>
               )}
-              <div className="flex flex-wrap gap-3">
+              <div className="grid grid-cols-4 gap-3">
                 {ADULTS.map(
                   (m) => {
-                    const isSelected = selectedSubjectId === m.id;
+                    const isSelected = selectedSubjectId === m.nickname;
                     const isCorrectMember =
-                      showReveal && m.id === question.subject_id;
+                      showReveal && m.nickname === question.subject_id;
                     const isWrongMember =
-                      showReveal && isSelected && m.id !== question.subject_id;
+                      showReveal && isSelected && m.nickname !== question.subject_id;
 
                     return (
                       <button
@@ -247,7 +247,7 @@ export default function PerguntaPage() {
                         onClick={() =>
                           !alreadyAnswered &&
                           !result &&
-                          setSelectedSubjectId(m.id)
+                          setSelectedSubjectId(m.nickname)
                         }
                         disabled={alreadyAnswered || !!result}
                         className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-colors disabled:cursor-default ${

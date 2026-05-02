@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Avatar } from "@/components/Avatar";
+import { CurrencyBadge } from "@/components/CurrencyBadge";
 import { useAuth } from "@/hooks/useAuth";
 import { getBets, getNenecoinBalance } from "@/lib/supabase/queries";
 import type { DbBet, NenecoinBalance } from "@/lib/types";
@@ -53,7 +54,7 @@ function BetCard({ bet }: { bet: DbBet }) {
           )}
           <span>{bet.entries_count ?? 0} apostas</span>
           <span>·</span>
-          <span className="text-yellow-400 font-semibold">🪙 {bet.total_pot ?? 0}</span>
+          <span className="text-yellow-400 font-semibold">{bet.total_pot ?? 0}</span>
         </div>
 
         <div className="flex items-center justify-between">
@@ -125,21 +126,17 @@ export default function ApostasPage() {
           {/* balance bar */}
           {balance !== null && (
             <div className="flex gap-3">
-              <div className="flex-1 bg-surface border border-border rounded-2xl px-4 py-3 flex items-center gap-2">
-                <span className="text-xl">🪙</span>
-                <div>
-                  <p className="text-lg font-bold">{balance.nenecoin_balance}</p>
-                  <p className="text-[10px] text-muted">nenecoins</p>
-                </div>
-              </div>
+              <CurrencyBadge
+                value={balance.nenecoin_balance}
+                label="nenecoins"
+                icon="nenecoins"
+              />
               {balance.firecoin_balance > 0 && (
-                <div className="flex-1 bg-surface border border-border rounded-2xl px-4 py-3 flex items-center gap-2">
-                  <span className="text-xl">🔥</span>
-                  <div>
-                    <p className="text-lg font-bold">{balance.firecoin_balance}</p>
-                    <p className="text-[10px] text-muted">firecoins</p>
-                  </div>
-                </div>
+                <CurrencyBadge
+                  value={balance.firecoin_balance}
+                  label="firecoins"
+                  icon="firecoins"
+                />
               )}
             </div>
           )}

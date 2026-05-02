@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Header } from "@/components/Header";
 import { Avatar } from "@/components/Avatar";
 import { Card } from "@/components/ui/Card";
+import { CurrencyBadge } from "@/components/CurrencyBadge";
 import { Button } from "@/components/ui/Button";
 import { MEMBERS, COUPLES } from "@/lib/constants";
 import {
@@ -121,35 +122,31 @@ export function ProfileClient({ nickname }: { nickname: string }) {
             )}
           </div>
 
+          {/* currencies */}
           {loadingStats ? (
-            <div className="w-32 h-16 bg-surface border border-border rounded-2xl animate-pulse" />
-          ) : (
-            <div className="flex flex-col items-center bg-surface border border-border rounded-2xl px-8 py-4">
-              <span className="text-4xl font-bold text-accent">
-                {stats?.total_points ?? 0}
-              </span>
-              <span className="text-xs text-muted mt-1">pontos</span>
-            </div>
-          )}
-
-          {/* Nenecoin balance (own profile) */}
-          {isOwnProfile && balance !== null && (
             <div className="flex gap-3 w-full">
-              <div className="flex-1 bg-surface border border-border rounded-2xl px-4 py-3 flex items-center gap-2">
-                <span className="text-xl">🪙</span>
-                <div>
-                  <p className="text-lg font-bold">{balance.nenecoin_balance}</p>
-                  <p className="text-[10px] text-muted">nenecoins</p>
-                </div>
-              </div>
-              {balance.firecoin_balance > 0 && (
-                <div className="flex-1 bg-surface border border-border rounded-2xl px-4 py-3 flex items-center gap-2">
-                  <span className="text-xl">🔥</span>
-                  <div>
-                    <p className="text-lg font-bold">{balance.firecoin_balance}</p>
-                    <p className="text-[10px] text-muted">firecoins</p>
-                  </div>
-                </div>
+              <div className="flex-1 h-16 bg-surface border border-border rounded-2xl animate-pulse" />
+            </div>
+          ) : (
+            <div className="flex gap-3 w-full">
+              <CurrencyBadge
+                value={stats?.total_points ?? 0}
+                label="pontos"
+                icon="points"
+              />
+              {isOwnProfile && balance !== null && (
+                <CurrencyBadge
+                  value={balance.nenecoin_balance}
+                  label="nenecoins"
+                  icon="nenecoins"
+                />
+              )}
+              {isOwnProfile && balance !== null && balance.firecoin_balance > 0 && (
+                <CurrencyBadge
+                  value={balance.firecoin_balance}
+                  label="firecoins"
+                  icon="firecoins"
+                />
               )}
             </div>
           )}
@@ -273,20 +270,22 @@ export function ProfileClient({ nickname }: { nickname: string }) {
               <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
                 Conquistas
               </h3>
-              <div className="grid grid-cols-4 gap-2">
+              <div className="grid grid-cols-3 gap-2">
                 {achievements.map((a) => (
                   <div
                     key={a.key}
-                    title={a.unlocked_at ? a.title : a.description}
-                    className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-colors ${
+                    className={`flex flex-col items-center p-3 rounded-xl border transition-colors ${
                       a.unlocked_at
                         ? "border-accent/30 bg-accent/5"
                         : "border-border opacity-30"
                     }`}
                   >
-                    <span className="text-2xl">{a.icon}</span>
-                    <span className="text-[10px] text-center text-muted leading-tight">
+                    <span className="text-2xl mb-1">{a.icon}</span>
+                    <span className="text-[11px] text-center font-semibold leading-tight line-clamp-2 min-h-[2.5em]">
                       {a.title}
+                    </span>
+                    <span className="text-[10px] text-center text-muted leading-tight line-clamp-2 min-h-[2.5em] mt-1">
+                      {a.description}
                     </span>
                   </div>
                 ))}

@@ -167,7 +167,7 @@ export async function createQuestion(params: {
     p_type: params.type,
     p_content: params.content,
     p_subject_id: params.subject_id ?? null,
-    p_options: params.options ? JSON.stringify(params.options) : null,
+    p_options: params.options ?? null,
   });
 
   if (error) {
@@ -504,7 +504,7 @@ export async function createBet(params: {
     p_guess_kind:  params.guess_kind ?? null,
     p_unit:        params.unit ?? null,
     p_deadline:    params.deadline,
-    p_options:     params.options ? JSON.stringify(params.options) : null,
+    p_options:     params.options ?? null,
   });
   if (error) { console.error("createBet:", error); return null; }
   return data as { id: string };

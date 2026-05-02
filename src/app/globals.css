@@ -10,6 +10,7 @@
   --accent-hover: #FF8A55;
   --purple: #8B5CF6;
   --green: #34D399;
+  --yellow: #FACC15;
   --border: #2A2A35;
 }
 
@@ -23,6 +24,7 @@
   --color-accent-hover: var(--accent-hover);
   --color-purple: var(--purple);
   --color-green: var(--green);
+  --color-yellow: var(--yellow);
   --color-border: var(--border);
   --font-body: var(--font-space-grotesk);
 }

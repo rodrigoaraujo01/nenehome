@@ -132,7 +132,7 @@ $$;
 create or replace function submit_answer(
   p_question_id        uuid,
   p_selected_option_id uuid default null,
-  p_subject_guess_id   uuid default null
+  p_subject_guess_id   text default null
 )
 returns json
 language plpgsql
@@ -153,11 +153,12 @@ begin
   if v_question.status = 'closed' then raise exception 'question is closed'; end if;
 
   if v_question.type = 'multiple_choice' then
-    select is_correct into v_is_correct
+    select coalesce(is_correct, false) into v_is_correct
       from question_options
       where id = p_selected_option_id and question_id = p_question_id;
+    if not found then v_is_correct := false; end if;
   elsif v_question.type = 'story' then
-    v_is_correct := (p_subject_guess_id = v_question.subject_id);
+    v_is_correct := coalesce(p_subject_guess_id = v_question.subject_id, false);
   end if;
 
   insert into answers (question_id, user_id, selected_option_id, subject_guess_id, is_correct)
@@ -191,7 +192,7 @@ $$;
 create or replace function create_question(
   p_type       text,
   p_content    text,
-  p_subject_id uuid default null,
+  p_subject_id text default null,
   p_options    json default null
 )
 returns json
