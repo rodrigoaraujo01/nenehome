@@ -1,9 +1,4 @@
-import { MEMBERS } from "@/lib/constants";
 import { ProfileClient } from "./ProfileClient";
-
-export function generateStaticParams() {
-  return MEMBERS.map((m) => ({ nickname: m.nickname.toLowerCase() }));
-}
 
 export default async function ProfilePage({
   params,

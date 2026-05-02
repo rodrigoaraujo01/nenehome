@@ -206,7 +206,7 @@ export async function getProfileStats(nickname: string): Promise<ProfileStats | 
   const { data: profileRow } = await sb
     .from("profiles")
     .select("id")
-    .eq("nickname", nickname)
+    .ilike("nickname", nickname)
     .maybeSingle();
 
   if (!profileRow) return null;

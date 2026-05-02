@@ -18,12 +18,17 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
 
-    const err = await signIn(email, password);
-    if (err) {
-      setError(err.message);
+    try {
+      const err = await signIn(email, password);
+      if (err) {
+        setError(err.message);
+        setLoading(false);
+      } else {
+        router.push("/");
+      }
+    } catch {
+      setError("Erro inesperado. Tente novamente.");
       setLoading(false);
-    } else {
-      router.push("/");
     }
   };
 

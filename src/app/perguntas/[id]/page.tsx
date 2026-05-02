@@ -1,7 +1,5 @@
 import PerguntaPage from "./PerguntaClient";
 
-export function generateStaticParams() { return [{ id: "_" }]; }
-
 export default function Page() {
   return <PerguntaPage />;
 }

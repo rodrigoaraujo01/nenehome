@@ -21,7 +21,7 @@ async function getProfileIdByNickname(nickname: string): Promise<string | null> 
   const { data } = await getSupabase()
     .from("profiles")
     .select("id")
-    .eq("nickname", nickname)
+    .ilike("nickname", nickname)
     .maybeSingle();
   return data?.id ?? null;
 }

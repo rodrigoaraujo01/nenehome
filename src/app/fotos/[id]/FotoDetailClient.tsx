@@ -111,7 +111,7 @@ export default function FotoDetailPage() {
         <div className="max-w-lg mx-auto space-y-5">
           <div className="flex items-center gap-3">
             <Link href="/fotos" className="text-muted hover:text-foreground transition-colors">
-              ←
+              ‹
             </Link>
             <span className={`text-sm font-bold ${STATUS_STYLE[currentStatus]}`}>
               {STATUS_LABEL[currentStatus]}

@@ -67,7 +67,7 @@ function BetCard({ bet }: { bet: DbBet }) {
           {bet.my_entry ? (
             <span className="text-xs text-accent font-semibold">✓ Você apostou</span>
           ) : bet.status === "open" ? (
-            <span className="text-xs text-muted">Apostar →</span>
+            <span className="text-xs text-muted">Apostar ›</span>
           ) : null}
         </div>
       </div>

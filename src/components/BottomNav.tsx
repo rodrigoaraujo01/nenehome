@@ -57,13 +57,13 @@ function ProfileIcon({ active }: { active: boolean }) {
 
 export function BottomNav() {
   const pathname = usePathname();
-  const { profile } = useAuth();
+  const { profile, loading } = useAuth();
 
   if (HIDDEN_ON.some((p) => pathname.startsWith(p))) return null;
 
   const profileHref = profile
     ? `/perfil/${profile.nickname.toLowerCase()}`
-    : "/login";
+    : loading ? "#" : "/login";
 
   const links = [
     { href: "/",         label: "Início",    icon: HomeIcon,      active: pathname === "/" },
