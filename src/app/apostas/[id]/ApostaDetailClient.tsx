@@ -202,10 +202,12 @@ export default function ApostaDetailPage() {
         <div className="max-w-lg mx-auto space-y-5">
           {/* back + status */}
           <div className="flex items-center gap-3">
-            <Link href="/apostas" className="text-muted hover:text-foreground transition-colors">‹</Link>
-            <span className={`text-sm font-bold ${isResolved ? "text-green" : isPastDeadline ? "text-red-400" : "text-yellow-400"}`}>
-              {isResolved ? "✓ Resolvida" : isPastDeadline ? "Prazo encerrado" : "Aberta"}
-            </span>
+            <Link href="/apostas" className="flex items-center gap-2 text-muted hover:text-foreground transition-colors">
+              <span>‹</span>
+              <span className={`text-sm font-bold ${isResolved ? "text-green" : isPastDeadline ? "text-red-400" : "text-yellow-400"}`}>
+                {isResolved ? "✓ Resolvida" : isPastDeadline ? "Prazo encerrado" : "Aberta"}
+              </span>
+            </Link>
           </div>
 
           {/* title + meta */}
@@ -328,7 +330,7 @@ export default function ApostaDetailPage() {
 
           {/* entry form */}
           {canEnter && (
-            <form onSubmit={handlePlaceBet} className="bg-surface border border-border rounded-2xl p-4 space-y-4">
+            <form onSubmit={handlePlaceBet} className="bg-surface border border-border rounded-2xl p-4 space-y-4 overflow-hidden">
               <p className="font-semibold text-sm">Sua aposta</p>
 
               {balance !== null && (
@@ -366,7 +368,7 @@ export default function ApostaDetailPage() {
                       type="date"
                       value={guessValue}
                       onChange={(e) => setGuessValue(e.target.value)}
-                      className="w-full bg-surface border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-accent transition-colors"
+                      className="w-full max-w-full bg-surface border border-border rounded-xl px-4 py-2.5 text-sm text-foreground focus:outline-none focus:border-accent transition-colors"
                     />
                   ) : (
                     <input
@@ -481,7 +483,7 @@ export default function ApostaDetailPage() {
                       type="date"
                       value={resolveValue}
                       onChange={(e) => setResolveValue(e.target.value)}
-                      className="w-full bg-surface border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green transition-colors"
+                      className="w-full max-w-full bg-surface border border-border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-green transition-colors"
                     />
                   ) : (
                     <input

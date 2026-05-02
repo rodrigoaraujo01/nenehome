@@ -152,7 +152,7 @@ export default function NovaPerguntaPage() {
                 <label className="text-sm font-semibold text-muted block mb-3">
                   Sobre quem é? (só você vai saber)
                 </label>
-                <div className="flex flex-wrap gap-3">
+                <div className="grid grid-cols-4 gap-3">
                   {subjectCandidates.map((m) => (
                     <button
                       key={m.id}

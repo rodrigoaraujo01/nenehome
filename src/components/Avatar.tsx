@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { MEMBERS } from "@/lib/constants";
 
 interface AvatarProps {
   spriteUrl: string | null;
@@ -9,7 +10,11 @@ interface AvatarProps {
 }
 
 export function Avatar({ spriteUrl, nickname, size = 128 }: AvatarProps) {
-  if (!spriteUrl) {
+  const resolved = MEMBERS.find((m) => m.nickname === nickname)?.spriteUrl
+    || spriteUrl
+    || null;
+
+  if (!resolved) {
     return (
       <div
         className="rounded-full bg-beige-dark flex items-center justify-center font-display italic text-foreground/60"
@@ -22,7 +27,7 @@ export function Avatar({ spriteUrl, nickname, size = 128 }: AvatarProps) {
 
   return (
     <Image
-      src={spriteUrl}
+      src={resolved}
       alt={`Avatar de ${nickname}`}
       width={size}
       height={size}
