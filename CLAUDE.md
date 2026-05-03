@@ -116,3 +116,7 @@ Dados importados da ferramenta local de análise do grupo do WhatsApp, recompens
 - **Supabase** (auth + banco de dados)
 - **Framer Motion** (animações)
 - Deploy: a definir
+
+## Documentos de Apoio
+
+- [Backlog técnico](docs/backlog.md)

@@ -39,14 +39,6 @@ export default function PerguntaPage() {
     });
   }, [profile, id]);
 
-  // pre-populate if already answered
-  useEffect(() => {
-    if (question?.my_answer) {
-      setSelectedOptionId(question.my_answer.selected_option_id);
-      setSelectedSubjectId(question.my_answer.subject_guess_id ?? null);
-    }
-  }, [question]);
-
   if (loading || fetching || !profile) {
     return (
       <main className="flex-1 flex items-center justify-center">
@@ -68,6 +60,10 @@ export default function PerguntaPage() {
 
   const alreadyAnswered = !!question.my_answer;
   const isCorrect = question.my_answer?.is_correct ?? result?.is_correct;
+  const displaySelectedOptionId =
+    question.my_answer?.selected_option_id ?? selectedOptionId;
+  const displaySelectedSubjectId =
+    question.my_answer?.subject_guess_id ?? selectedSubjectId;
 
   async function handleSubmit() {
     if (!question) return;
@@ -174,7 +170,7 @@ export default function PerguntaPage() {
           {question.type === "multiple_choice" && question.options && (
             <div className="space-y-2">
               {question.options.map((opt, i) => {
-                const isSelected = selectedOptionId === opt.id;
+                const isSelected = displaySelectedOptionId === opt.id;
                 const isCorrectOpt = showReveal && opt.is_correct;
                 const isWrongSelected =
                   showReveal && isSelected && !opt.is_correct;
@@ -227,7 +223,7 @@ export default function PerguntaPage() {
               <div className="grid grid-cols-4 gap-3">
                 {ADULTS.map(
                   (m) => {
-                    const isSelected = selectedSubjectId === m.nickname;
+                    const isSelected = displaySelectedSubjectId === m.nickname;
                     const isCorrectMember =
                       showReveal && m.nickname === question.subject_id;
                     const isWrongMember =

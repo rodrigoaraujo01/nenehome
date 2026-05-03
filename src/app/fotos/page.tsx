@@ -98,7 +98,6 @@ export default function FotosPage() {
                       <ChallengeCard
                         key={c.id}
                         challenge={c}
-                        currentUserId={profile.id}
                       />
                     ))}
                   </div>
@@ -149,7 +148,6 @@ export default function FotosPage() {
                       <ChallengeCard
                         key={c.id}
                         challenge={c}
-                        currentUserId={profile.id}
                       />
                     ))}
                   </div>

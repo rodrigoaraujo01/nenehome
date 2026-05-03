@@ -52,7 +52,7 @@ export function ProfileClient({ nickname }: { nickname: string }) {
       setStats(s);
       setLoadingStats(false);
     });
-  }, [member?.nickname]);
+  }, [member]);
 
   useEffect(() => {
     if (!member) return;
@@ -60,7 +60,7 @@ export function ProfileClient({ nickname }: { nickname: string }) {
       setProfileId(id);
       if (id) getUserAchievements(id).then(setAchievements);
     });
-  }, [member?.nickname]);
+  }, [member]);
 
   // Load own balance when viewing own profile
   useEffect(() => {
@@ -68,7 +68,7 @@ export function ProfileClient({ nickname }: { nickname: string }) {
     if (currentUser.nickname.toLowerCase() === member.nickname.toLowerCase()) {
       getNenecoinBalance().then(setBalance);
     }
-  }, [currentUser?.id, member?.nickname]);
+  }, [currentUser, member]);
 
   if (!member) {
     return (

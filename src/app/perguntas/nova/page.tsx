@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { Header } from "@/components/Header";
@@ -36,7 +36,11 @@ export default function NovaPerguntaPage() {
   const [error, setError] = useState<string | null>(null);
   const [newAchievements, setNewAchievements] = useState<UnlockedAchievement[]>([]);
 
-  if (loading) {
+  useEffect(() => {
+    if (!loading && !profile) router.push("/login");
+  }, [loading, profile, router]);
+
+  if (loading || !profile) {
     return (
       <main className="flex-1 flex items-center justify-center">
         <p className="text-muted">Carregando...</p>
