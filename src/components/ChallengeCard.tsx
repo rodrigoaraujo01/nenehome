@@ -6,7 +6,6 @@ import type { DbPhotoChallenge } from "@/lib/types";
 
 interface ChallengeCardProps {
   challenge: DbPhotoChallenge;
-  currentUserId: string;
 }
 
 function formatDeadline(deadline: string): string {
@@ -30,7 +29,7 @@ function getTimeLeft(deadline: string): string {
   return `${mins}min restantes`;
 }
 
-export function ChallengeCard({ challenge, currentUserId }: ChallengeCardProps) {
+export function ChallengeCard({ challenge }: ChallengeCardProps) {
   const isExpired = new Date(challenge.deadline) < new Date();
   const isCompleted = !!challenge.my_completion;
   const completionCount = challenge.completion_count ?? 0;

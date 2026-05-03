@@ -550,6 +550,9 @@ begin
   if v_bet.creator_id != v_user_id then
     return json_build_object('error', 'Apenas o criador pode resolver o bolão');
   end if;
+  if now() <= v_bet.deadline then
+    return json_build_object('error', 'O bolão só pode ser resolvido depois do prazo');
+  end if;
 
   select coalesce(sum(coins_wagered), 0) into v_total_pot
   from bet_entries where bet_id = p_bet_id;

@@ -135,6 +135,7 @@ export default function ApostaDetailPage() {
   const isPastDeadline = new Date(bet.deadline) < new Date();
   const canEnter = !isResolved && !isPastDeadline && !bet.my_entry
     && !(isCreator && !bet.creator_can_bet);
+  const canResolve = isCreator && !isResolved && isPastDeadline;
   const entries = bet.entries ?? [];
   const totalPot = bet.total_pot ?? 0;
 
@@ -451,8 +452,16 @@ export default function ApostaDetailPage() {
             </div>
           )}
 
-          {/* resolve section (creator only, open bet) */}
-          {isCreator && !isResolved && (
+          {isCreator && !isResolved && !isPastDeadline && (
+            <div className="border-t border-border pt-5">
+              <p className="text-sm text-muted">
+                Você poderá resolver este bolão depois do prazo.
+              </p>
+            </div>
+          )}
+
+          {/* resolve section (creator only, after deadline) */}
+          {canResolve && (
             <form onSubmit={handleResolve} className="border-t border-border pt-5 space-y-4">
               <p className="text-sm font-semibold text-muted">Resolver bolão</p>
 

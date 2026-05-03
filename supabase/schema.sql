@@ -94,9 +94,9 @@ create policy "answers: owner can insert"
   on answers for insert with check (auth.uid() = user_id);
 
 -- Users can always see their own answers.
--- They can also see all answers to a question once it's closed,
--- or see that a question has been answered (for counts) without
--- seeing who guessed what on active questions.
+-- They can also see all answers to a question once it's closed.
+-- Aggregate counts for active questions are exposed through
+-- get_question_answer_counts below without exposing individual rows.
 create policy "answers: owner can read own"
   on answers for select using (auth.uid() = user_id);
 
@@ -104,6 +104,28 @@ create policy "answers: anyone can read closed question answers"
   on answers for select using (
     (select status from questions where id = question_id) = 'closed'
   );
+
+-- ─────────────────────────────────────────────
+-- RPC: get_question_answer_counts
+-- Returns aggregate answer counts without exposing active answer rows.
+-- ─────────────────────────────────────────────
+create or replace function get_question_answer_counts(p_question_ids uuid[])
+returns table(question_id uuid, answer_count int)
+language plpgsql
+security definer
+as $$
+begin
+  if auth.role() <> 'authenticated' then
+    return;
+  end if;
+
+  return query
+    select a.question_id, count(*)::int as answer_count
+    from answers a
+    where a.question_id = any(p_question_ids)
+    group by a.question_id;
+end;
+$$;
 
 -- ─────────────────────────────────────────────
 -- points_log

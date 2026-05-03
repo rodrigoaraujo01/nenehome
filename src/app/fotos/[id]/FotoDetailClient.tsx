@@ -150,6 +150,7 @@ export default function FotoDetailPage() {
                 <span className="font-semibold">Aprovações</span>
                 <span className="text-muted">
                   {approveCount} de {threshold} necessárias
+                  {rejectCount > 0 ? ` · ${rejectCount} rejeição(ões)` : ""}
                 </span>
               </div>
               <div className="h-2 bg-surface-light rounded-full overflow-hidden">

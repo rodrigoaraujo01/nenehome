@@ -13,13 +13,14 @@ import { FirecoinPopup } from "./FirecoinPopup";
 
 export function NenecoinsInit() {
   const { profile } = useAuth();
+  const profileId = profile?.id;
   const [showFirecoin, setShowFirecoin] = useState(false);
   const [convertedAmount, setConvertedAmount] = useState(0);
 
   useEffect(() => {
-    if (!profile) return;
+    if (!profileId) return;
 
-    const key = `nc_init_${profile.id}`;
+    const key = `nc_init_${profileId}`;
     if (sessionStorage.getItem(key)) return;
     sessionStorage.setItem(key, "1");
 
@@ -38,7 +39,7 @@ export function NenecoinsInit() {
         setShowFirecoin(true);
       }
     })();
-  }, [profile?.id]);
+  }, [profileId]);
 
   async function handleDismiss() {
     setShowFirecoin(false);

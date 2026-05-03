@@ -9,25 +9,15 @@ interface AchievementToastProps {
 }
 
 export function AchievementToast({ achievements }: AchievementToastProps) {
-  const [queue, setQueue] = useState<UnlockedAchievement[]>([]);
-  const [current, setCurrent] = useState<UnlockedAchievement | null>(null);
+  const [currentIndex, setCurrentIndex] = useState(0);
 
-  useEffect(() => {
-    if (achievements.length > 0) {
-      setQueue((prev) => [...prev, ...achievements]);
-    }
-  }, [achievements]);
-
-  useEffect(() => {
-    if (!current && queue.length > 0) {
-      setCurrent(queue[0]);
-      setQueue((prev) => prev.slice(1));
-    }
-  }, [current, queue]);
+  const current = currentIndex < achievements.length
+    ? achievements[currentIndex]
+    : null;
 
   useEffect(() => {
     if (!current) return;
-    const t = setTimeout(() => setCurrent(null), 3200);
+    const t = setTimeout(() => setCurrentIndex((index) => index + 1), 3200);
     return () => clearTimeout(t);
   }, [current]);
 

@@ -72,6 +72,25 @@ export async function getLeaderboard(): Promise<LeaderboardEntry[]> {
 
 // ─── Questions ────────────────────────────────────────────────────────────────
 
+async function getQuestionAnswerCounts(
+  questionIds: string[]
+): Promise<Map<string, number>> {
+  if (questionIds.length === 0) return new Map();
+
+  const { data, error } = await getSupabase().rpc("get_question_answer_counts", {
+    p_question_ids: questionIds,
+  });
+
+  if (error || !data) return new Map();
+
+  return new Map(
+    (data as { question_id: string; answer_count: number }[]).map((row) => [
+      row.question_id,
+      row.answer_count,
+    ])
+  );
+}
+
 export async function getQuestions(userId: string): Promise<DbQuestion[]> {
   const sb = getSupabase();
 
@@ -94,15 +113,7 @@ export async function getQuestions(userId: string): Promise<DbQuestion[]> {
 
   const answeredMap = new Map(myAnswers?.map((a) => [a.question_id, a]));
 
-  const { data: counts } = await sb
-    .from("answers")
-    .select("question_id")
-    .in("question_id", questions.map((q) => q.id));
-
-  const countMap = new Map<string, number>();
-  counts?.forEach((r) => {
-    countMap.set(r.question_id, (countMap.get(r.question_id) ?? 0) + 1);
-  });
+  const countMap = await getQuestionAnswerCounts(questions.map((q) => q.id));
 
   return questions.map((q) => ({
     ...q,
@@ -140,10 +151,7 @@ export async function getQuestion(
     .eq("user_id", userId)
     .maybeSingle();
 
-  const { data: counts } = await sb
-    .from("answers")
-    .select("question_id")
-    .eq("question_id", id);
+  const countMap = await getQuestionAnswerCounts([id]);
 
   return {
     ...question,
@@ -151,7 +159,7 @@ export async function getQuestion(
       (a: { position: number }, b: { position: number }) =>
         a.position - b.position
     ),
-    answer_count: counts?.length ?? 0,
+    answer_count: countMap.get(id) ?? 0,
     my_answer: myAnswer ?? null,
   } as DbQuestion;
 }
