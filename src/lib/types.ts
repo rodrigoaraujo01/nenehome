@@ -260,3 +260,63 @@ export interface ResolveBetResult {
   refunded?: boolean;
   error?: string;
 }
+
+// ─── World Cup Bolao ─────────────────────────────────────────────────────────
+
+export interface WcMatch {
+  id: string;
+  match_number: number;
+  stage: "group" | "round_of_32" | "round_of_16" | "quarter" | "semi" | "third_place" | "final";
+  group_name: string | null;
+  date: string;
+  home_team: string;
+  away_team: string;
+  home_code: string;
+  away_code: string;
+  home_flag: string;
+  away_flag: string;
+  home_score: number | null;
+  away_score: number | null;
+  home_penalties: number | null;
+  away_penalties: number | null;
+  status: "scheduled" | "live" | "finished";
+  // computed
+  my_prediction?: WcPrediction | null;
+}
+
+export interface WcPrediction {
+  id: string;
+  match_id: string;
+  user_id: string;
+  home_score: number;
+  away_score: number;
+  coins_wagered: number;
+  points_earned: number | null;
+  coins_won: number;
+  created_at: string;
+  profiles?: { nickname: string; avatar_url: string | null };
+}
+
+export interface WcLeaderboardEntry {
+  user_id: string;
+  nickname: string;
+  name: string;
+  avatar_url: string | null;
+  couple_group: number;
+  total_points: number;
+  predictions_count: number;
+  exact_scores: number;
+}
+
+export interface WcPredictionResult {
+  prediction_id?: string;
+  achievements?: UnlockedAchievement[];
+  error?: string;
+}
+
+export interface WcScoreResult {
+  match_id?: string;
+  status?: string;
+  predictions_scored?: number;
+  error?: string;
+}

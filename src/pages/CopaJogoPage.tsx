@@ -1,0 +1,399 @@
+
+import { useEffect, useState } from "react";
+import { useParams, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
+import { Header } from "@/components/Header";
+import { Avatar } from "@/components/Avatar";
+import { Button } from "@/components/ui/Button";
+import { AchievementToast } from "@/components/AchievementToast";
+import { CurrencyBadge } from "@/components/CurrencyBadge";
+import { useAuth } from "@/hooks/useAuth";
+import {
+  getWcMatch,
+  placeWcPrediction,
+  scoreWcMatch,
+  getNenecoinBalance,
+} from "@/lib/supabase/queries";
+import { ADULTS } from "@/lib/constants";
+import type { WcMatch, WcPrediction, NenecoinBalance, UnlockedAchievement } from "@/lib/types";
+
+const POINTS_LABELS: Record<number, string> = {
+  25: "Placar exato",
+  18: "Vencedor + gols do vencedor",
+  15: "Vencedor + saldo de gols",
+  12: "Vencedor + gols do perdedor",
+  10: "Resultado certo",
+  0: "Errou",
+};
+
+export default function CopaJogoPage() {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { profile, loading } = useAuth();
+
+  const [match, setMatch] = useState<WcMatch | null>(null);
+  const [predictions, setPredictions] = useState<WcPrediction[]>([]);
+  const [balance, setBalance] = useState<NenecoinBalance | null>(null);
+  const [fetching, setFetching] = useState(true);
+
+  const [homeScore, setHomeScore] = useState("");
+  const [awayScore, setAwayScore] = useState("");
+  const [coins, setCoins] = useState(0);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const [toasts, setToasts] = useState<UnlockedAchievement[]>([]);
+
+  // Admin state
+  const [adminHome, setAdminHome] = useState("");
+  const [adminAway, setAdminAway] = useState("");
+  const [adminSubmitting, setAdminSubmitting] = useState(false);
+
+  const isAdmin = profile?.nickname === "Rodrigo";
+
+  useEffect(() => {
+    if (!loading && !profile) navigate("/login");
+  }, [loading, profile, navigate]);
+
+  useEffect(() => {
+    if (!profile) return;
+    Promise.all([
+      getWcMatch(id!, profile.id),
+      getNenecoinBalance(),
+    ]).then(([data, bal]) => {
+      if (data) {
+        setMatch(data.match);
+        setPredictions(data.predictions);
+        if (data.match.my_prediction) {
+          setHomeScore(String(data.match.my_prediction.home_score));
+          setAwayScore(String(data.match.my_prediction.away_score));
+          setCoins(data.match.my_prediction.coins_wagered);
+        }
+        if (data.match.home_score !== null) {
+          setAdminHome(String(data.match.home_score));
+          setAdminAway(String(data.match.away_score));
+        }
+      }
+      setBalance(bal);
+      setFetching(false);
+    });
+  }, [profile, id]);
+
+  if (loading || fetching || !profile || !match) {
+    return (
+      <main className="flex-1 flex items-center justify-center">
+        <p className="text-muted">Carregando...</p>
+      </main>
+    );
+  }
+
+  const kickoff = new Date(match.date);
+  const betsOpen = match.status === "scheduled" && new Date() < new Date(kickoff.getTime() - 10 * 60_000);
+  const showPredictions = !betsOpen || match.status !== "scheduled";
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setError("");
+    setSubmitting(true);
+
+    const h = parseInt(homeScore);
+    const a = parseInt(awayScore);
+    if (isNaN(h) || isNaN(a) || h < 0 || a < 0) {
+      setError("Placar invalido");
+      setSubmitting(false);
+      return;
+    }
+
+    const result = await placeWcPrediction({
+      match_id: match!.id,
+      home_score: h,
+      away_score: a,
+      coins,
+    });
+
+    if (result.error) {
+      setError(result.error);
+    } else {
+      if (result.achievements?.length) {
+        setToasts(result.achievements);
+      }
+      const data = await getWcMatch(match!.id, profile!.id);
+      if (data) {
+        setMatch(data.match);
+        setPredictions(data.predictions);
+      }
+      const bal = await getNenecoinBalance();
+      setBalance(bal);
+    }
+    setSubmitting(false);
+  }
+
+  async function handleAdminScore(e: React.FormEvent) {
+    e.preventDefault();
+    setAdminSubmitting(true);
+    await scoreWcMatch({
+      match_id: match!.id,
+      home_score: parseInt(adminHome),
+      away_score: parseInt(adminAway),
+      status: "finished",
+    });
+    const data = await getWcMatch(match!.id, profile!.id);
+    if (data) {
+      setMatch(data.match);
+      setPredictions(data.predictions);
+    }
+    setAdminSubmitting(false);
+  }
+
+  // Bet statistics
+  const totalPreds = predictions.length;
+  const homeWins = predictions.filter((p) => p.home_score > p.away_score).length;
+  const draws = predictions.filter((p) => p.home_score === p.away_score).length;
+  const awayWins = predictions.filter((p) => p.home_score < p.away_score).length;
+
+  return (
+    <>
+      <Header />
+      {toasts.length > 0 && <AchievementToast achievements={toasts} />}
+      <main className="flex-1 px-6 py-8">
+        <div className="max-w-lg mx-auto space-y-6">
+          <Link
+            to="/copa/jogos"
+            className="flex items-center gap-3 text-muted hover:text-foreground transition-colors"
+          >
+            <span>&#8249;</span>
+            <span>Voltar</span>
+          </Link>
+
+          {/* Match header */}
+          <div className="bg-surface border border-border rounded-2xl p-6 text-center">
+            <p className="text-xs text-muted mb-4">
+              {kickoff.toLocaleDateString("pt-BR", {
+                weekday: "long",
+                day: "2-digit",
+                month: "long",
+              })}{" "}
+              {kickoff.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+              {match.group_name && (
+                <span className="ml-2 text-accent">Grupo {match.group_name}</span>
+              )}
+            </p>
+
+            <div className="flex items-center justify-center gap-6">
+              <div className="text-center">
+                <p className="text-3xl mb-1">{match.home_flag}</p>
+                <p className="font-bold text-sm">{match.home_team}</p>
+              </div>
+
+              <div className="text-center min-w-[80px]">
+                {match.home_score !== null && match.away_score !== null ? (
+                  <p className="text-4xl font-bold">
+                    {match.home_score} <span className="text-muted text-2xl">x</span> {match.away_score}
+                  </p>
+                ) : (
+                  <p className="text-2xl text-muted font-bold">vs</p>
+                )}
+                {match.status === "live" && (
+                  <span className="text-xs font-bold text-green uppercase">Ao Vivo</span>
+                )}
+              </div>
+
+              <div className="text-center">
+                <p className="text-3xl mb-1">{match.away_flag}</p>
+                <p className="font-bold text-sm">{match.away_team}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Prediction form */}
+          {betsOpen && (
+            <form onSubmit={handleSubmit} className="bg-surface border border-border rounded-2xl p-5 space-y-4">
+              <h3 className="font-bold">Seu palpite</h3>
+
+              <div className="flex items-center gap-4 justify-center">
+                <div className="text-center">
+                  <p className="text-xs text-muted mb-1">{match.home_code}</p>
+                  <input
+                    type="number"
+                    min="0"
+                    max="20"
+                    value={homeScore}
+                    onChange={(e) => setHomeScore(e.target.value)}
+                    className="w-16 h-14 text-center text-2xl font-bold bg-background border border-border rounded-xl focus:border-accent outline-none"
+                    required
+                  />
+                </div>
+                <span className="text-muted text-xl font-bold mt-5">x</span>
+                <div className="text-center">
+                  <p className="text-xs text-muted mb-1">{match.away_code}</p>
+                  <input
+                    type="number"
+                    min="0"
+                    max="20"
+                    value={awayScore}
+                    onChange={(e) => setAwayScore(e.target.value)}
+                    className="w-16 h-14 text-center text-2xl font-bold bg-background border border-border rounded-xl focus:border-accent outline-none"
+                    required
+                  />
+                </div>
+              </div>
+
+              {/* Coin wager */}
+              {balance && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm text-muted">Apostar nenecoins (opcional)</label>
+                    <CurrencyBadge value={balance.nenecoin_balance} label="" icon="nenecoins" />
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max={balance.nenecoin_balance}
+                    value={coins}
+                    onChange={(e) => setCoins(Number(e.target.value))}
+                    className="w-full accent-yellow-400"
+                  />
+                  <div className="flex justify-between text-xs text-muted">
+                    <span>0</span>
+                    <span className="font-bold text-yellow-400">{coins} nenecoins</span>
+                    <span>{balance.nenecoin_balance}</span>
+                  </div>
+                </div>
+              )}
+
+              {error && <p className="text-sm text-red-400">{error}</p>}
+
+              <Button type="submit" disabled={submitting} className="w-full">
+                {match.my_prediction ? "Atualizar palpite" : "Confirmar palpite"}
+              </Button>
+            </form>
+          )}
+
+          {/* User's prediction (when bets are closed) */}
+          {!betsOpen && match.my_prediction && (
+            <div className="bg-surface border border-accent/30 rounded-2xl p-4">
+              <p className="text-xs text-muted mb-2">Seu palpite</p>
+              <div className="flex items-center justify-between">
+                <p className="text-lg font-bold">
+                  {match.my_prediction.home_score} x {match.my_prediction.away_score}
+                </p>
+                <div className="text-right">
+                  {match.my_prediction.points_earned != null && (
+                    <p className={`font-bold ${match.my_prediction.points_earned > 0 ? "text-green" : "text-red-400"}`}>
+                      +{match.my_prediction.points_earned} pts
+                      <span className="text-xs text-muted ml-1">
+                        ({POINTS_LABELS[match.my_prediction.points_earned] ?? ""})
+                      </span>
+                    </p>
+                  )}
+                  {match.my_prediction.coins_wagered > 0 && (
+                    <p className="text-xs text-yellow-400">
+                      Apostou {match.my_prediction.coins_wagered} coins
+                      {match.my_prediction.coins_won > 0 && (
+                        <span className="text-green ml-1">
+                          &rarr; ganhou {match.my_prediction.coins_won}
+                        </span>
+                      )}
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Predictions from others */}
+          {showPredictions && predictions.length > 0 && (
+            <section className="space-y-3">
+              <h3 className="text-xs font-bold text-muted uppercase tracking-wider">
+                Palpites ({predictions.length})
+              </h3>
+
+              {/* Statistics */}
+              {totalPreds > 0 && (
+                <div className="flex gap-2 text-xs">
+                  <span className="bg-surface border border-border rounded-full px-3 py-1">
+                    {match.home_code} {Math.round((homeWins / totalPreds) * 100)}%
+                  </span>
+                  <span className="bg-surface border border-border rounded-full px-3 py-1">
+                    Empate {Math.round((draws / totalPreds) * 100)}%
+                  </span>
+                  <span className="bg-surface border border-border rounded-full px-3 py-1">
+                    {match.away_code} {Math.round((awayWins / totalPreds) * 100)}%
+                  </span>
+                </div>
+              )}
+
+              <div className="space-y-2">
+                {predictions
+                  .sort((a, b) => (b.points_earned ?? -1) - (a.points_earned ?? -1))
+                  .map((pred) => {
+                    const member = ADULTS.find((a) => a.nickname === pred.profiles?.nickname);
+                    return (
+                      <div
+                        key={pred.id}
+                        className={`bg-surface border rounded-xl p-3 flex items-center gap-3 ${
+                          pred.user_id === profile!.id ? "border-accent/40" : "border-border"
+                        }`}
+                      >
+                        <Avatar
+                          spriteUrl={member?.spriteUrl ?? pred.profiles?.avatar_url ?? null}
+                          nickname={pred.profiles?.nickname ?? "?"}
+                          size={28}
+                        />
+                        <span className="text-sm font-semibold flex-1">
+                          {pred.profiles?.nickname}
+                        </span>
+                        <span className="text-sm font-bold">
+                          {pred.home_score} x {pred.away_score}
+                        </span>
+                        {pred.coins_wagered > 0 && (
+                          <span className="text-xs text-yellow-400">{pred.coins_wagered}c</span>
+                        )}
+                        {pred.points_earned != null && (
+                          <span className={`text-sm font-bold min-w-[40px] text-right ${pred.points_earned > 0 ? "text-green" : "text-red-400"}`}>
+                            +{pred.points_earned}
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+              </div>
+            </section>
+          )}
+
+          {/* Admin: score update */}
+          {isAdmin && match.status !== "finished" && (
+            <form onSubmit={handleAdminScore} className="bg-red-500/5 border border-red-500/20 rounded-2xl p-4 space-y-3">
+              <h3 className="font-bold text-red-400 text-sm">Admin: Atualizar placar</h3>
+              <div className="flex items-center gap-3 justify-center">
+                <input
+                  type="number"
+                  min="0"
+                  value={adminHome}
+                  onChange={(e) => setAdminHome(e.target.value)}
+                  className="w-14 h-10 text-center font-bold bg-background border border-border rounded-xl outline-none"
+                  required
+                />
+                <span className="text-muted">x</span>
+                <input
+                  type="number"
+                  min="0"
+                  value={adminAway}
+                  onChange={(e) => setAdminAway(e.target.value)}
+                  className="w-14 h-10 text-center font-bold bg-background border border-border rounded-xl outline-none"
+                  required
+                />
+              </div>
+              <Button
+                type="submit"
+                disabled={adminSubmitting}
+                className="w-full bg-red-500 hover:bg-red-600"
+              >
+                Finalizar jogo
+              </Button>
+            </form>
+          )}
+        </div>
+      </main>
+    </>
+  );
+}

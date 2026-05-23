@@ -1,7 +1,5 @@
-"use client";
 
-import Link from "next/link";
-import Image from "next/image";
+import { Link } from "react-router-dom";
 import { Avatar } from "./Avatar";
 import type { DbPhotoSubmission } from "@/lib/types";
 
@@ -32,16 +30,14 @@ export function PhotoCard({ submission, currentUserId }: PhotoCardProps) {
   const progress = Math.min((approveCount / threshold) * 100, 100);
 
   return (
-    <Link href={`/fotos/${submission.id}`} className="block">
+    <Link to={`/fotos/${submission.id}`} className="block">
       <div className="bg-surface border border-border rounded-2xl overflow-hidden hover:border-accent/40 transition-colors">
         {/* photo */}
         <div className="relative aspect-square w-full bg-surface-light">
-          <Image
+          <img
             src={submission.photo_url}
             alt={submission.caption ?? "Foto"}
-            fill
-            className="object-cover"
-            unoptimized
+            className="absolute inset-0 w-full h-full object-cover"
           />
           <span
             className={`absolute top-3 right-3 text-xs font-bold px-2 py-1 rounded-full ${

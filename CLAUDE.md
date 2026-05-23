@@ -102,6 +102,43 @@ Dados importados da ferramenta local de análise do grupo do WhatsApp, recompens
 
 ---
 
+## Bolão da Copa 2026
+
+Seção temporária do app para a Copa do Mundo 2026. Portado de um app Flask anterior (`copa_confra`).
+
+### Mecânica
+
+- Cada membro faz um palpite de placar (home x away) para cada jogo da Copa.
+- Palpites travam 10 minutos antes do jogo.
+- Pontuação por acurácia do palpite (25/18/15/12/10/0 pts).
+- Ranking separado do ranking geral do NeneHome.
+- Top colocados ganham bônus no ranking principal ao final (1o=100, 2o=75, 3o=50, demais=25).
+
+### Nenecoins
+
+- Aposta opcional de nenecoins por jogo, com multiplicador baseado na pontuação:
+  - 25 pts → 5x | 18 pts → 3x | 15 pts → 2.5x | 12 pts → 2x | 10 pts → 1.5x | 0 pts → perde
+
+### Rotas
+
+- `/copa` — dashboard (ranking, jogos de hoje/amanhã, stats)
+- `/copa/jogos` — todos os jogos agrupados por data
+- `/copa/jogo/[id]` — detalhe do jogo + formulário de palpite + aposta de coins
+- `/copa/ranking` — leaderboard completo do bolão
+- `/copa/regras` — regras de pontuação e multiplicadores
+
+### Schema
+
+- `supabase/worldcup.sql` — tabelas `wc_matches`, `wc_predictions`, view `wc_leaderboard`, RPCs `place_wc_prediction`, `score_wc_match`, `finalize_wc_tournament`
+- Conquistas: `wc_first_prediction`, `wc_oracle`, `wc_streak_3`, `wc_champion`, `wc_all_in`
+
+### Pendente
+
+- Popular `wc_matches` com o calendário oficial da Copa 2026
+- Mecanismo de atualização de placares ao vivo (API externa ou manual via admin)
+
+---
+
 ## Ideias Originais (ainda relevantes)
 
 - **Avatares customizados** por membro
@@ -112,7 +149,7 @@ Dados importados da ferramenta local de análise do grupo do WhatsApp, recompens
 
 ## Stack Técnica
 
-- **Next.js 16** (App Router) + TypeScript + Tailwind CSS v4
+- **React 19** + **Vite** + **React Router v7** + TypeScript + Tailwind CSS v4
 - **Supabase** (auth + banco de dados)
 - **Framer Motion** (animações)
 - Deploy: a definir

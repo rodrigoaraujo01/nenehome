@@ -1,4 +1,3 @@
-"use client";
 
 import { MemberCard } from "./MemberCard";
 import type { Member } from "@/lib/types";
