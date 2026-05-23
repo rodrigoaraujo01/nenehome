@@ -41,7 +41,9 @@ export async function getOrCreateProfile(
 
   if (existing) return existing as DbProfile;
 
-  const member = MEMBERS.find((m) => m.email === email);
+  const member = MEMBERS.find(
+    (m) => m.email?.toLowerCase() === email.toLowerCase()
+  );
   if (!member) return null;
 
   const { data, error } = await sb

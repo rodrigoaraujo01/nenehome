@@ -129,11 +129,14 @@ export default function CopaJogoPage() {
 
   async function handleAdminScore(e: React.FormEvent) {
     e.preventDefault();
+    const h = parseInt(adminHome);
+    const a = parseInt(adminAway);
+    if (isNaN(h) || isNaN(a) || h < 0 || a < 0) return;
     setAdminSubmitting(true);
     await scoreWcMatch({
       match_id: match!.id,
-      home_score: parseInt(adminHome),
-      away_score: parseInt(adminAway),
+      home_score: h,
+      away_score: a,
       status: "finished",
     });
     const data = await getWcMatch(match!.id, profile!.id);

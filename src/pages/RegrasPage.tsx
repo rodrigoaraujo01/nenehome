@@ -67,9 +67,24 @@ export default function RegrasPage() {
               <div>
                 <p className="font-semibold text-foreground mb-1">Nenecoins</p>
                 <p>
-                  A moeda do jogo. Você recebe 50 nenecoins por semana
-                  automaticamente e pode ganhar mais convertendo pontos. Use suas
-                  nenecoins, porque senão, elas vão ficar para a aposentadoria.
+                  A moeda do jogo. Você começa com 100 nenecoins e recebe mais
+                  50 por semana automaticamente. Use para apostar em bolões e
+                  nos jogos da Copa.
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold text-foreground mb-1">Firecoins</p>
+                <p>
+                  Nenecoins paradas por muito tempo viram firecoins — a
+                  aposentadoria das moedas. Firecoins não podem ser gastas, então
+                  use suas nenecoins enquanto pode!
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold text-foreground mb-1">Presentes</p>
+                <p>
+                  Você pode dar nenecoins para outros membros a qualquer momento
+                  pelo perfil deles.
                 </p>
               </div>
             </div>
@@ -100,8 +115,8 @@ export default function RegrasPage() {
               </div>
             </div>
             <div className="flex gap-2 flex-wrap">
-              <Tag>Acertar = pontos</Tag>
-              <Tag>Criar pergunta = pontos</Tag>
+              <Tag>Acertar = +10 pts</Tag>
+              <Tag>Criar pergunta = +5 pts</Tag>
             </div>
           </Section>
 
@@ -110,8 +125,11 @@ export default function RegrasPage() {
             <p>
               Desafios de foto criados pelos membros. Cada desafio é uma missão:
               tire a selfie certa, reúna as pessoas certas, registre o momento
-              pedido. Envie a foto como prova e o grupo vota pra validar — se a
-              maioria aprovar, os pontos são seus.
+              pedido. Envie a foto como prova e o grupo vota pra validar.
+            </p>
+            <p>
+              São necessárias 4 aprovações para a foto ser aceita. Você
+              não pode votar na sua própria foto.
             </p>
             <p>
               Exemplos: foto com cada membro individualmente, com cada casal, o
@@ -119,8 +137,13 @@ export default function RegrasPage() {
               rolé nenequer...
             </p>
             <div className="flex gap-2 flex-wrap">
-              <Tag>Completar desafio = pontos</Tag>
+              <Tag>Foto aprovada = +20 pts</Tag>
+              <Tag>Desafio = +30 pts extras</Tag>
             </div>
+            <p className="text-xs">
+              O criador do desafio define os pontos extras (entre 5 e 200). O
+              padrão é 30.
+            </p>
           </Section>
 
           {/* Bolões */}
@@ -185,6 +208,22 @@ export default function RegrasPage() {
             <div className="flex gap-2 flex-wrap">
               <Tag>Desbloquear conquista = pontos</Tag>
             </div>
+          </Section>
+
+          {/* Copa 2026 */}
+          <Section title="Copa 2026">
+            <p>
+              Bolão da Copa do Mundo! Faça palpites nos jogos e aposte
+              nenecoins. Ranking separado com pontos bônus pro ranking geral
+              no final.
+            </p>
+            <Link
+              to="/copa/regras"
+              className="inline-flex items-center gap-2 bg-green/10 border border-green/30 rounded-xl px-4 py-2.5 text-sm font-semibold text-green hover:bg-green/15 transition-colors"
+            >
+              <span>&#9917;</span>
+              Ver regras completas da Copa
+            </Link>
           </Section>
 
           {/* Regras de Ouro */}

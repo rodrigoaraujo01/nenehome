@@ -25,6 +25,7 @@ import CopaJogosPage from "@/pages/CopaJogosPage";
 import CopaRankingPage from "@/pages/CopaRankingPage";
 import CopaRegrasPage from "@/pages/CopaRegrasPage";
 import PerfilPage from "@/pages/PerfilPage";
+import NotFoundPage from "@/pages/NotFoundPage";
 
 export function App() {
   return (
@@ -53,6 +54,7 @@ export function App() {
         <Route path="/copa/ranking" element={<CopaRankingPage />} />
         <Route path="/copa/regras" element={<CopaRegrasPage />} />
         <Route path="/perfil/:nickname" element={<PerfilPage />} />
+        <Route path="*" element={<NotFoundPage />} />
       </Routes>
       <BottomNav />
       <NenecoinsInit />

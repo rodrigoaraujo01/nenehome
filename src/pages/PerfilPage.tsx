@@ -113,6 +113,13 @@ export default function PerfilPage() {
       <Header />
       <main className="flex-1 px-6 py-8">
         <section className="max-w-md mx-auto flex flex-col items-center gap-6">
+          <Link
+            to="/"
+            className="self-start flex items-center gap-3 text-muted hover:text-foreground transition-colors"
+          >
+            <span>‹</span>
+            <span className="text-sm font-bold text-foreground">Início</span>
+          </Link>
           <Avatar spriteUrl={member.spriteUrl} nickname={member.nickname} size={120} />
           <div className="text-center">
             <h2 className="text-3xl font-bold">{member.nickname}</h2>

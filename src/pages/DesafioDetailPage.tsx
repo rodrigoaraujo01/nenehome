@@ -7,6 +7,7 @@ import { Avatar } from "@/components/Avatar";
 import { PhotoCard } from "@/components/PhotoCard";
 import { useAuth } from "@/hooks/useAuth";
 import { getChallenge } from "@/lib/supabase/queries";
+import { ADULTS } from "@/lib/constants";
 import type { DbPhotoChallenge } from "@/lib/types";
 
 export default function DesafioDetailPage() {
@@ -132,7 +133,7 @@ export default function DesafioDetailPage() {
           {completionCount > 0 && challenge.completions && (
             <div>
               <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
-                Completaram ({completionCount}/8)
+                Completaram ({completionCount}/{ADULTS.length})
               </h3>
               <div className="bg-surface border border-border rounded-2xl divide-y divide-border">
                 {challenge.completions.map((c) => (

@@ -20,6 +20,7 @@ export default function FotoDetailPage() {
   const [fetching, setFetching] = useState(true);
   const [voting, setVoting] = useState(false);
   const [voteResult, setVoteResult] = useState<VoteResult | null>(null);
+  const [myVoteValue, setMyVoteValue] = useState<boolean | null>(null);
   const [newAchievements, setNewAchievements] = useState<UnlockedAchievement[]>([]);
 
   useEffect(() => {
@@ -75,6 +76,7 @@ export default function FotoDetailPage() {
     setVoting(false);
     if (result) {
       setVoteResult(result);
+      setMyVoteValue(approved);
       if (result.achievements?.length) setNewAchievements(result.achievements);
     }
   }
@@ -182,7 +184,7 @@ export default function FotoDetailPage() {
                   {isOwn
                     ? "Você não pode votar na própria foto"
                     : `Você ${
-                        (voteResult ? voteResult.approve_count > (submission.approve_count ?? 0) : submission.my_vote)
+                        (myVoteValue ?? submission.my_vote)
                           ? "aprovou"
                           : "rejeitou"
                       } esta foto`}
