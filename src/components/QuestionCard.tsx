@@ -1,6 +1,5 @@
-"use client";
 
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import { Avatar } from "./Avatar";
 import type { DbQuestion } from "@/lib/types";
 
@@ -18,7 +17,7 @@ export function QuestionCard({ question }: QuestionCardProps) {
   const correct = question.my_answer?.is_correct;
 
   return (
-    <Link href={`/perguntas/${question.id}`} className="block">
+    <Link to={`/perguntas/${question.id}`} className="block">
       <div className="bg-surface border border-border rounded-2xl p-4 hover:border-accent/40 transition-colors">
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-bold uppercase tracking-wider text-muted">

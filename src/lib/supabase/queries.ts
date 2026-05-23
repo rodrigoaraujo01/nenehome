@@ -17,6 +17,11 @@ import type {
   DbBet,
   PlaceBetResult,
   ResolveBetResult,
+  WcMatch,
+  WcPrediction,
+  WcLeaderboardEntry,
+  WcPredictionResult,
+  WcScoreResult,
 } from "@/lib/types";
 import { MEMBERS } from "@/lib/constants";
 
@@ -659,4 +664,179 @@ export async function resolveBet(
   });
   if (error) return { error: error.message };
   return data as ResolveBetResult;
+}
+
+// ─── World Cup Bolao ─────────────────────────────────────────────────────────
+
+export async function getWcMatches(userId: string): Promise<WcMatch[]> {
+  const sb = getSupabase();
+
+  const [matchRes, predRes] = await Promise.all([
+    sb.from("wc_matches").select("*").order("match_number"),
+    sb.from("wc_predictions").select("*").eq("user_id", userId),
+  ]);
+
+  if (matchRes.error || !matchRes.data) return [];
+
+  const predMap = new Map(
+    (predRes.data ?? []).map((p) => [p.match_id, p as WcPrediction])
+  );
+
+  return matchRes.data.map((m) => ({
+    ...m,
+    my_prediction: predMap.get(m.id) ?? null,
+  })) as WcMatch[];
+}
+
+export async function getWcMatch(
+  matchId: string,
+  userId: string
+): Promise<{ match: WcMatch; predictions: WcPrediction[] } | null> {
+  const sb = getSupabase();
+
+  const [matchRes, predRes] = await Promise.all([
+    sb.from("wc_matches").select("*").eq("id", matchId).single(),
+    sb.from("wc_predictions")
+      .select("*, profiles(nickname, avatar_url)")
+      .eq("match_id", matchId),
+  ]);
+
+  if (matchRes.error || !matchRes.data) return null;
+
+  const predictions = (predRes.data ?? []) as WcPrediction[];
+  const myPred = predictions.find((p) => p.user_id === userId) ?? null;
+
+  return {
+    match: { ...matchRes.data, my_prediction: myPred } as WcMatch,
+    predictions,
+  };
+}
+
+export async function getWcLeaderboard(): Promise<WcLeaderboardEntry[]> {
+  const { data, error } = await getSupabase()
+    .from("wc_leaderboard")
+    .select("*")
+    .order("total_points", { ascending: false });
+
+  if (error || !data) return [];
+  return data as WcLeaderboardEntry[];
+}
+
+export async function placeWcPrediction(params: {
+  match_id: string;
+  home_score: number;
+  away_score: number;
+  coins: number;
+}): Promise<WcPredictionResult> {
+  const { data, error } = await getSupabase().rpc("place_wc_prediction", {
+    p_match_id: params.match_id,
+    p_home_score: params.home_score,
+    p_away_score: params.away_score,
+    p_coins: params.coins,
+  });
+  if (error) return { error: error.message };
+  const result = data as WcPredictionResult;
+  return { ...result, achievements: result.achievements ?? [] };
+}
+
+export async function scoreWcMatch(params: {
+  match_id: string;
+  home_score: number;
+  away_score: number;
+  status?: string;
+}): Promise<WcScoreResult> {
+  const { data, error } = await getSupabase().rpc("score_wc_match", {
+    p_match_id: params.match_id,
+    p_home_score: params.home_score,
+    p_away_score: params.away_score,
+    p_status: params.status ?? "finished",
+  });
+  if (error) return { error: error.message };
+  return data as WcScoreResult;
+}
+
+// ─── Nudges ──────────────────────────────────────────────────────────────────
+
+export interface NudgeCounts {
+  unansweredQuestions: number;
+  pendingPhotoVotes: number;
+  activeChallenges: number;
+  unpredictedMatches: number;
+  questionsCreated: number;
+}
+
+export async function getNudgeCounts(userId: string): Promise<NudgeCounts> {
+  const sb = getSupabase();
+  const now = new Date().toISOString();
+
+  const [
+    activeQuestionsRes,
+    userAnswersRes,
+    pendingSubmissionsRes,
+    userVotesRes,
+    challengesRes,
+    userCompletionsRes,
+    scheduledMatchesRes,
+    userPredictionsRes,
+    questionsCreatedRes,
+  ] = await Promise.all([
+    sb.from("questions").select("id").eq("status", "active"),
+    sb.from("answers").select("question_id").eq("user_id", userId),
+    sb
+      .from("photo_submissions")
+      .select("id, submitter_id")
+      .eq("status", "pending"),
+    sb.from("photo_votes").select("submission_id").eq("voter_id", userId),
+    sb
+      .from("photo_challenges")
+      .select("id, starts_at, deadline")
+      .lte("starts_at", now)
+      .gt("deadline", now),
+    sb
+      .from("photo_challenge_completions")
+      .select("challenge_id")
+      .eq("user_id", userId),
+    sb.from("wc_matches").select("id").eq("status", "scheduled"),
+    sb.from("wc_predictions").select("match_id").eq("user_id", userId),
+    sb
+      .from("questions")
+      .select("id", { count: "exact", head: true })
+      .eq("creator_id", userId),
+  ]);
+
+  const answeredIds = new Set(
+    (userAnswersRes.data ?? []).map((a) => a.question_id),
+  );
+  const unansweredQuestions = (activeQuestionsRes.data ?? []).filter(
+    (q) => !answeredIds.has(q.id),
+  ).length;
+
+  const votedIds = new Set(
+    (userVotesRes.data ?? []).map((v) => v.submission_id),
+  );
+  const pendingPhotoVotes = (pendingSubmissionsRes.data ?? []).filter(
+    (s) => s.submitter_id !== userId && !votedIds.has(s.id),
+  ).length;
+
+  const completedChallengeIds = new Set(
+    (userCompletionsRes.data ?? []).map((c) => c.challenge_id),
+  );
+  const activeChallenges = (challengesRes.data ?? []).filter(
+    (c) => !completedChallengeIds.has(c.id),
+  ).length;
+
+  const predictedMatchIds = new Set(
+    (userPredictionsRes.data ?? []).map((p) => p.match_id),
+  );
+  const unpredictedMatches = (scheduledMatchesRes.data ?? []).filter(
+    (m) => !predictedMatchIds.has(m.id),
+  ).length;
+
+  return {
+    unansweredQuestions,
+    pendingPhotoVotes,
+    activeChallenges,
+    unpredictedMatches,
+    questionsCreated: questionsCreatedRes.count ?? 0,
+  };
 }

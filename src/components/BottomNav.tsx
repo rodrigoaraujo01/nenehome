@@ -1,7 +1,6 @@
-"use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 
 const HIDDEN_ON = ["/login", "/primeiro-acesso"];
@@ -56,7 +55,7 @@ function ProfileIcon({ active }: { active: boolean }) {
 }
 
 export function BottomNav() {
-  const pathname = usePathname();
+  const { pathname } = useLocation();
   const { profile, loading } = useAuth();
 
   if (HIDDEN_ON.some((p) => pathname.startsWith(p))) return null;
@@ -79,7 +78,7 @@ export function BottomNav() {
         {links.map(({ href, label, icon: Icon, active }) => (
           <Link
             key={href}
-            href={href}
+            to={href}
             className={`flex-1 flex flex-col items-center gap-1 py-3 transition-colors ${
               active ? "text-accent" : "text-muted hover:text-foreground"
             }`}

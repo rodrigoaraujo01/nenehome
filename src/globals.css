@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+:root {
+  --font-space-grotesk: "Space Grotesk", sans-serif;
+  --background: #0A0A0B;
+  --surface: #1A1A1F;
+  --surface-light: #252530;
+  --foreground: #F5F5F5;
+  --muted: #8A8A9A;
+  --accent: #FF6B2C;
+  --accent-hover: #FF8A55;
+  --purple: #8B5CF6;
+  --green: #34D399;
+  --yellow: #FACC15;
+  --border: #2A2A35;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-surface: var(--surface);
+  --color-surface-light: var(--surface-light);
+  --color-foreground: var(--foreground);
+  --color-muted: var(--muted);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-purple: var(--purple);
+  --color-green: var(--green);
+  --color-yellow: var(--yellow);
+  --color-border: var(--border);
+  --font-body: var(--font-space-grotesk);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+  font-family: var(--font-body), sans-serif;
+}

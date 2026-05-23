@@ -1,6 +1,5 @@
-"use client";
 
-import Link from "next/link";
+import { Link } from "react-router-dom";
 import { Avatar } from "./Avatar";
 import type { DbPhotoChallenge } from "@/lib/types";
 
@@ -35,7 +34,7 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
   const completionCount = challenge.completion_count ?? 0;
 
   return (
-    <Link href={`/fotos/desafios/${challenge.id}`} className="block">
+    <Link to={`/fotos/desafios/${challenge.id}`} className="block">
       <div className="bg-surface border border-border rounded-2xl p-5 hover:border-accent/40 transition-colors">
         <div className="flex items-start justify-between gap-3 mb-3">
           <h3 className="font-bold text-sm leading-snug line-clamp-2 flex-1">

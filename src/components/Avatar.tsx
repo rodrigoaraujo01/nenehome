@@ -1,6 +1,4 @@
-"use client";
 
-import Image from "next/image";
 import { MEMBERS } from "@/lib/constants";
 
 interface AvatarProps {
@@ -26,7 +24,7 @@ export function Avatar({ spriteUrl, nickname, size = 128 }: AvatarProps) {
   }
 
   return (
-    <Image
+    <img
       src={resolved}
       alt={`Avatar de ${nickname}`}
       width={size}

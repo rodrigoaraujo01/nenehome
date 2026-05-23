@@ -1,15 +1,15 @@
-import Link from "next/link";
+import { Link } from "react-router-dom";
 
 export function Header() {
   return (
     <header className="w-full py-5 px-6 border-b border-border flex items-center justify-between">
-      <Link href="/">
+      <Link to="/">
         <h1 className="font-bold text-2xl tracking-tight">
           nene<span className="text-accent">home</span>
         </h1>
       </Link>
       <Link
-        href="/regras"
+        to="/regras"
         className="w-9 h-9 flex items-center justify-center rounded-full border border-border text-muted hover:text-foreground hover:border-accent/40 transition-colors"
         aria-label="Regras do jogo"
       >
