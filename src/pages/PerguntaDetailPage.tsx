@@ -272,6 +272,10 @@ export default function PerguntaPage() {
           )}
 
           {/* all answers (visible after user has answered) */}
+          {showReveal && allAnswers.length === 0 && (
+            <p className="text-xs text-muted text-center">Nenhuma resposta carregada</p>
+          )}
+
           {showReveal && allAnswers.length > 0 && (
             <section className="space-y-2">
               <p className="text-xs font-bold text-muted uppercase tracking-wider">
