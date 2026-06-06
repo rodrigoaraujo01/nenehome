@@ -123,6 +123,14 @@ export interface ProfileStats {
   }[];
 }
 
+export interface PointsLogEntry {
+  id: string;
+  amount: number;
+  reason: string;
+  ref_id: string | null;
+  created_at: string;
+}
+
 // ─── Photo challenges ──────────────────────────────────────────────────────────
 
 export interface DbPhotoChallengeCompletion {
