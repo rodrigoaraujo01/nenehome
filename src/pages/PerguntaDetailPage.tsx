@@ -7,9 +7,9 @@ import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/ui/Button";
 import { AchievementToast } from "@/components/AchievementToast";
 import { useAuth } from "@/hooks/useAuth";
-import { getQuestion, submitAnswer } from "@/lib/supabase/queries";
+import { getQuestion, submitAnswer, getQuestionAnswers } from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
-import type { DbQuestion, AnswerResult, UnlockedAchievement } from "@/lib/types";
+import type { DbQuestion, AnswerResult, UnlockedAchievement, QuestionAnswer } from "@/lib/types";
 
 const OPTION_LABELS = ["A", "B", "C", "D"];
 
@@ -24,6 +24,7 @@ export default function PerguntaPage() {
   const [selectedSubjectId, setSelectedSubjectId] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<AnswerResult | null>(null);
+  const [allAnswers, setAllAnswers] = useState<QuestionAnswer[]>([]);
   const [newAchievements, setNewAchievements] = useState<UnlockedAchievement[]>([]);
 
   useEffect(() => {
@@ -32,8 +33,12 @@ export default function PerguntaPage() {
 
   useEffect(() => {
     if (!profile || !id) return;
-    getQuestion(id, profile.id).then((q) => {
+    getQuestion(id, profile.id).then(async (q) => {
       setQuestion(q);
+      if (q?.my_answer) {
+        const answers = await getQuestionAnswers(id);
+        setAllAnswers(answers);
+      }
       setFetching(false);
     });
   }, [profile, id]);
@@ -76,10 +81,14 @@ export default function PerguntaPage() {
     if (res) {
       setResult(res);
       if (res.achievements?.length) setNewAchievements(res.achievements);
-      // refresh question to get my_answer
+      // refresh question to get my_answer and fetch all answers
       if (profile) {
-        const updated = await getQuestion(question.id, profile.id);
+        const [updated, answers] = await Promise.all([
+          getQuestion(question.id, profile.id),
+          getQuestionAnswers(question.id),
+        ]);
         if (updated) setQuestion(updated);
+        setAllAnswers(answers);
       }
     }
   }
@@ -260,6 +269,54 @@ export default function PerguntaPage() {
                 )}
               </div>
             </div>
+          )}
+
+          {/* all answers (visible after user has answered) */}
+          {showReveal && allAnswers.length === 0 && (
+            <p className="text-xs text-muted text-center">Nenhuma resposta carregada</p>
+          )}
+
+          {showReveal && allAnswers.length > 0 && (
+            <section className="space-y-2">
+              <p className="text-xs font-bold text-muted uppercase tracking-wider">
+                O que o grupo achou ({allAnswers.length})
+              </p>
+              {allAnswers.map((ans) => {
+                const member = ADULTS.find((m) => m.nickname === ans.nickname);
+                const selectedOption = question.type === "multiple_choice"
+                  ? question.options?.find((o) => o.id === ans.selected_option_id)
+                  : null;
+                const guessedMember = question.type === "story"
+                  ? ADULTS.find((m) => m.nickname === ans.subject_guess_id)
+                  : null;
+
+                return (
+                  <div
+                    key={ans.id}
+                    className={`flex items-center gap-3 rounded-xl border px-3 py-2.5 ${
+                      ans.is_correct ? "border-green/30 bg-green/5" : "border-border"
+                    }`}
+                  >
+                    <Avatar
+                      spriteUrl={member?.spriteUrl ?? ans.avatar_url ?? null}
+                      nickname={ans.nickname}
+                      size={28}
+                    />
+                    <span className="text-sm font-semibold flex-1">{ans.nickname}</span>
+                    <span className="text-xs text-muted">
+                      {question.type === "multiple_choice" && selectedOption
+                        ? selectedOption.text
+                        : guessedMember
+                        ? guessedMember.nickname
+                        : "—"}
+                    </span>
+                    <span className={`text-sm font-bold ${ans.is_correct ? "text-green" : "text-red-400"}`}>
+                      {ans.is_correct ? "✓" : "✗"}
+                    </span>
+                  </div>
+                );
+              })}
+            </section>
           )}
 
           {/* action buttons */}

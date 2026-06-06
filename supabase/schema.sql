@@ -106,6 +106,54 @@ create policy "answers: anyone can read closed question answers"
   );
 
 -- ─────────────────────────────────────────────
+-- RPC: get_question_answers
+-- Returns all answers for a question, but only if the calling user
+-- has already answered it (so they can't peek before answering).
+-- ─────────────────────────────────────────────
+create or replace function get_question_answers(p_question_id uuid)
+returns table (
+  id                 uuid,
+  user_id            uuid,
+  selected_option_id uuid,
+  subject_guess_id   text,
+  is_correct         boolean,
+  created_at         timestamptz,
+  nickname           text,
+  avatar_url         text
+)
+language plpgsql
+security definer
+as $$
+begin
+  if auth.role() <> 'authenticated' then
+    return;
+  end if;
+
+  if not exists (
+    select 1 from answers a
+    where a.question_id = p_question_id and a.user_id = auth.uid()
+  ) then
+    return;
+  end if;
+
+  return query
+    select
+      a.id,
+      a.user_id,
+      a.selected_option_id,
+      a.subject_guess_id,
+      a.is_correct,
+      a.created_at,
+      pr.nickname,
+      pr.avatar_url
+    from answers a
+    join profiles pr on pr.id = a.user_id
+    where a.question_id = p_question_id
+    order by a.created_at asc;
+end;
+$$;
+
+-- ─────────────────────────────────────────────
 -- RPC: get_question_answer_counts
 -- Returns aggregate answer counts without exposing active answer rows.
 -- ─────────────────────────────────────────────
