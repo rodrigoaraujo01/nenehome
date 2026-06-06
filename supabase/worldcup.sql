@@ -280,6 +280,11 @@ begin
     return json_build_object('error', 'Jogo não encontrado');
   end if;
 
+  -- Only allow finishing after expected end time (kickoff + 105 min)
+  if p_status = 'finished' and now() < v_match.date + interval '105 minutes' then
+    return json_build_object('error', 'Jogo ainda não terminou — aguarde pelo menos 1h45 após o início');
+  end if;
+
   -- Update match
   update wc_matches
   set home_score = p_home_score,
@@ -336,6 +341,61 @@ begin
     'status', p_status,
     'predictions_scored', v_scored
   );
+end;
+$$;
+
+-- ─────────────────────────────────────────────
+-- RPC: revert_wc_match
+-- Admin-only: undoes a finished match, reverting scores and coin payouts
+-- ─────────────────────────────────────────────
+create or replace function revert_wc_match(p_match_id uuid)
+returns json
+language plpgsql
+security definer
+as $$
+declare
+  v_user_id     uuid := auth.uid();
+  v_user_email  text;
+  v_match       wc_matches%rowtype;
+  v_pred        wc_predictions%rowtype;
+begin
+  select email into v_user_email from auth.users where id = v_user_id;
+  if v_user_email != 'alf.rodrigo@gmail.com' then
+    return json_build_object('error', 'Apenas o admin pode reverter jogos');
+  end if;
+
+  select * into v_match from wc_matches where id = p_match_id;
+  if not found then
+    return json_build_object('error', 'Jogo não encontrado');
+  end if;
+
+  if v_match.status != 'finished' then
+    return json_build_object('error', 'Jogo não está finalizado');
+  end if;
+
+  -- Reverse coin payouts for each prediction
+  for v_pred in
+    select * from wc_predictions where match_id = p_match_id
+  loop
+    if v_pred.coins_won > 0 then
+      insert into nenecoins_ledger (user_id, amount, coin_type, tx_type, ref_id, note)
+      values (v_pred.user_id, -v_pred.coins_won, 'nenecoin', 'wc_bet_refund', p_match_id,
+        'Reverte Copa: ' || v_match.home_team || ' x ' || v_match.away_team);
+    end if;
+
+    update wc_predictions
+    set points_earned = null, coins_won = 0
+    where id = v_pred.id;
+  end loop;
+
+  -- Reset match to scheduled
+  update wc_matches
+  set home_score = null,
+      away_score = null,
+      status = 'scheduled'
+  where id = p_match_id;
+
+  return json_build_object('match_id', p_match_id, 'status', 'scheduled');
 end;
 $$;
 
