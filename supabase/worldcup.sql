@@ -42,6 +42,7 @@ create table if not exists wc_matches (
 );
 
 alter table wc_matches enable row level security;
+drop policy if exists "wc_matches: authenticated can read" on wc_matches;
 create policy "wc_matches: authenticated can read"
   on wc_matches for select using (auth.role() = 'authenticated');
 
@@ -62,6 +63,7 @@ create table if not exists wc_predictions (
 );
 
 alter table wc_predictions enable row level security;
+drop policy if exists "wc_predictions: authenticated can read" on wc_predictions;
 create policy "wc_predictions: authenticated can read"
   on wc_predictions for select using (auth.role() = 'authenticated');
 
