@@ -201,7 +201,9 @@ export async function getQuestionAnswers(questionId: string): Promise<QuestionAn
   const { data, error } = await getSupabase().rpc("get_question_answers", {
     p_question_id: questionId,
   });
-  if (error || !data) return [];
+  if (error) { console.error("getQuestionAnswers error:", error); return []; }
+  if (!data) { console.warn("getQuestionAnswers: no data returned"); return []; }
+  console.log("getQuestionAnswers:", data);
   return data as QuestionAnswer[];
 }
 
