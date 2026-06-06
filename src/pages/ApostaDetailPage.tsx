@@ -7,7 +7,7 @@ import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/ui/Button";
 import { AchievementToast } from "@/components/AchievementToast";
 import { useAuth } from "@/hooks/useAuth";
-import { getBet, placeBet, resolveBet, getNenecoinBalance } from "@/lib/supabase/queries";
+import { getBet, placeBet, resolveBet, deleteBet, getNenecoinBalance } from "@/lib/supabase/queries";
 import type { DbBet, BetOption, BetEntry, NenecoinBalance, UnlockedAchievement } from "@/lib/types";
 
 function formatDeadline(iso: string) {
@@ -96,6 +96,8 @@ export default function ApostaDetailPage() {
   const [resolving, setResolving] = useState(false);
   const [entryError, setEntryError] = useState<string | null>(null);
   const [resolveError, setResolveError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
   const [newAchievements, setNewAchievements] = useState<UnlockedAchievement[]>([]);
 
   useEffect(() => {
@@ -177,6 +179,24 @@ export default function ApostaDetailPage() {
     if (updated) setBet(updated);
     const bal = await getNenecoinBalance();
     if (bal) setBalance(bal);
+  }
+
+  async function handleDelete() {
+    if (!bet) return;
+    const hasEntries = (bet.entries?.length ?? 0) > 0;
+    const msg = hasEntries
+      ? `Excluir "${bet.title}"? As apostas serão reembolsadas.`
+      : `Excluir "${bet.title}"?`;
+    if (!confirm(msg)) return;
+    setDeleting(true);
+    setDeleteError(null);
+    const result = await deleteBet(bet.id);
+    if (result.error) {
+      setDeleteError(result.error);
+      setDeleting(false);
+    } else {
+      navigate("/apostas");
+    }
   }
 
   // For closest_guess resolved: sort entries by distance to result
@@ -452,10 +472,19 @@ export default function ApostaDetailPage() {
           )}
 
           {isCreator && !isResolved && !isPastDeadline && (
-            <div className="border-t border-border pt-5">
+            <div className="border-t border-border pt-5 space-y-3">
               <p className="text-sm text-muted">
                 Você poderá resolver este bolão depois do prazo.
               </p>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="text-xs text-red-400 hover:opacity-80 transition-opacity disabled:opacity-50"
+              >
+                {deleting ? "Excluindo..." : "Excluir bolão"}
+              </button>
+              {deleteError && <p className="text-xs text-red-400">{deleteError}</p>}
             </div>
           )}
 

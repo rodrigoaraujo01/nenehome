@@ -668,6 +668,12 @@ export async function resolveBet(
   return data as ResolveBetResult;
 }
 
+export async function deleteBet(betId: string): Promise<{ error?: string }> {
+  const { data, error } = await getSupabase().rpc("delete_bet", { p_bet_id: betId });
+  if (error) return { error: error.message };
+  return data as { error?: string };
+}
+
 // ─── World Cup Bolao ─────────────────────────────────────────────────────────
 
 export async function getWcMatches(userId: string): Promise<WcMatch[]> {
