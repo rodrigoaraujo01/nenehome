@@ -757,6 +757,14 @@ export async function scoreWcMatch(params: {
   return data as WcScoreResult;
 }
 
+export async function revertWcMatch(matchId: string): Promise<WcScoreResult> {
+  const { data, error } = await getSupabase().rpc("revert_wc_match", {
+    p_match_id: matchId,
+  });
+  if (error) return { error: error.message };
+  return data as WcScoreResult;
+}
+
 // ─── Nudges ──────────────────────────────────────────────────────────────────
 
 export interface NudgeCounts {

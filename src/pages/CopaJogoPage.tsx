@@ -12,6 +12,7 @@ import {
   getWcMatch,
   placeWcPrediction,
   scoreWcMatch,
+  revertWcMatch,
   getNenecoinBalance,
 } from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
@@ -47,6 +48,8 @@ export default function CopaJogoPage() {
   const [adminHome, setAdminHome] = useState("");
   const [adminAway, setAdminAway] = useState("");
   const [adminSubmitting, setAdminSubmitting] = useState(false);
+  const [adminError, setAdminError] = useState("");
+  const [reverting, setReverting] = useState(false);
 
   const isAdmin = profile?.nickname === "Rodrigo";
 
@@ -89,6 +92,8 @@ export default function CopaJogoPage() {
   const kickoff = new Date(match.date);
   const betsOpen = match.status === "scheduled" && new Date() < new Date(kickoff.getTime() - 10 * 60_000);
   const showPredictions = !betsOpen || match.status !== "scheduled";
+  // Allow finishing only after expected end time (kickoff + 105 min)
+  const canFinish = new Date() >= new Date(kickoff.getTime() + 105 * 60_000);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -129,22 +134,44 @@ export default function CopaJogoPage() {
 
   async function handleAdminScore(e: React.FormEvent) {
     e.preventDefault();
+    setAdminError("");
     const h = parseInt(adminHome);
     const a = parseInt(adminAway);
     if (isNaN(h) || isNaN(a) || h < 0 || a < 0) return;
     setAdminSubmitting(true);
-    await scoreWcMatch({
+    const result = await scoreWcMatch({
       match_id: match!.id,
       home_score: h,
       away_score: a,
       status: "finished",
     });
-    const data = await getWcMatch(match!.id, profile!.id);
-    if (data) {
-      setMatch(data.match);
-      setPredictions(data.predictions);
+    if (result.error) {
+      setAdminError(result.error);
+    } else {
+      const data = await getWcMatch(match!.id, profile!.id);
+      if (data) {
+        setMatch(data.match);
+        setPredictions(data.predictions);
+      }
     }
     setAdminSubmitting(false);
+  }
+
+  async function handleRevert() {
+    if (!confirm("Reverter este jogo para 'scheduled'? Pontos e coins serão desfeitos.")) return;
+    setReverting(true);
+    setAdminError("");
+    const result = await revertWcMatch(match!.id);
+    if (result.error) {
+      setAdminError(result.error);
+    } else {
+      const data = await getWcMatch(match!.id, profile!.id);
+      if (data) {
+        setMatch(data.match);
+        setPredictions(data.predictions);
+      }
+    }
+    setReverting(false);
   }
 
   // Bet statistics
@@ -364,36 +391,58 @@ export default function CopaJogoPage() {
           )}
 
           {/* Admin: score update */}
-          {isAdmin && match.status !== "finished" && (
-            <form onSubmit={handleAdminScore} className="bg-red-500/5 border border-red-500/20 rounded-2xl p-4 space-y-3">
-              <h3 className="font-bold text-red-400 text-sm">Admin: Atualizar placar</h3>
-              <div className="flex items-center gap-3 justify-center">
-                <input
-                  type="number"
-                  min="0"
-                  value={adminHome}
-                  onChange={(e) => setAdminHome(e.target.value)}
-                  className="w-14 h-10 text-center font-bold bg-background border border-border rounded-xl outline-none"
-                  required
-                />
-                <span className="text-muted">x</span>
-                <input
-                  type="number"
-                  min="0"
-                  value={adminAway}
-                  onChange={(e) => setAdminAway(e.target.value)}
-                  className="w-14 h-10 text-center font-bold bg-background border border-border rounded-xl outline-none"
-                  required
-                />
-              </div>
-              <Button
-                type="submit"
-                disabled={adminSubmitting}
-                className="w-full bg-red-500 hover:bg-red-600"
-              >
-                Finalizar jogo
-              </Button>
-            </form>
+          {isAdmin && (
+            <div className="bg-red-500/5 border border-red-500/20 rounded-2xl p-4 space-y-3">
+              <h3 className="font-bold text-red-400 text-sm">Admin</h3>
+
+              {match.status !== "finished" && (
+                <form onSubmit={handleAdminScore} className="space-y-3">
+                  <div className="flex items-center gap-3 justify-center">
+                    <input
+                      type="number"
+                      min="0"
+                      value={adminHome}
+                      onChange={(e) => setAdminHome(e.target.value)}
+                      className="w-14 h-10 text-center font-bold bg-background border border-border rounded-xl outline-none"
+                      required
+                    />
+                    <span className="text-muted">x</span>
+                    <input
+                      type="number"
+                      min="0"
+                      value={adminAway}
+                      onChange={(e) => setAdminAway(e.target.value)}
+                      className="w-14 h-10 text-center font-bold bg-background border border-border rounded-xl outline-none"
+                      required
+                    />
+                  </div>
+                  {!canFinish && (
+                    <p className="text-xs text-yellow-400 text-center">
+                      Disponível após {new Date(kickoff.getTime() + 105 * 60_000).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
+                    </p>
+                  )}
+                  <Button
+                    type="submit"
+                    disabled={adminSubmitting || !canFinish}
+                    className="w-full bg-red-500 hover:bg-red-600 disabled:opacity-50"
+                  >
+                    Finalizar jogo
+                  </Button>
+                </form>
+              )}
+
+              {match.status === "finished" && (
+                <Button
+                  onClick={handleRevert}
+                  disabled={reverting}
+                  className="w-full bg-yellow-600 hover:bg-yellow-700"
+                >
+                  {reverting ? "Revertendo..." : "Reverter jogo"}
+                </Button>
+              )}
+
+              {adminError && <p className="text-xs text-red-400">{adminError}</p>}
+            </div>
           )}
         </div>
       </main>
