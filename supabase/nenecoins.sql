@@ -407,6 +407,50 @@ end;
 $$;
 
 -- ─────────────────────────────────────────────
+-- RPC: delete_bet
+-- Creator-only: refunds all entries then deletes the bet
+-- ─────────────────────────────────────────────
+create or replace function delete_bet(p_bet_id uuid)
+returns json
+language plpgsql
+security definer
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_bet     bets%rowtype;
+  v_entry   bet_entries%rowtype;
+begin
+  select * into v_bet from bets where id = p_bet_id;
+  if not found then
+    return json_build_object('error', 'Bolão não encontrado');
+  end if;
+
+  if v_bet.creator_id != v_user_id then
+    return json_build_object('error', 'Apenas o criador pode excluir o bolão');
+  end if;
+
+  if v_bet.status = 'resolved' then
+    return json_build_object('error', 'Não é possível excluir um bolão já resolvido');
+  end if;
+
+  -- Refund coins for all entries
+  for v_entry in
+    select * from bet_entries where bet_id = p_bet_id
+  loop
+    if v_entry.coins_wagered > 0 then
+      insert into nenecoins_ledger (user_id, amount, coin_type, tx_type, ref_id, note)
+      values (v_entry.user_id, v_entry.coins_wagered, 'nenecoin', 'bet_refund', p_bet_id,
+        'Reembolso: bolão excluído — ' || v_bet.title);
+    end if;
+  end loop;
+
+  delete from bets where id = p_bet_id;
+
+  return json_build_object('deleted', true);
+end;
+$$;
+
+-- ─────────────────────────────────────────────
 -- RPC: create_bet
 -- ─────────────────────────────────────────────
 create or replace function create_bet(
