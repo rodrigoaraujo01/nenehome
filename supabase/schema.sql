@@ -130,8 +130,8 @@ begin
   end if;
 
   if not exists (
-    select 1 from answers
-    where question_id = p_question_id and user_id = auth.uid()
+    select 1 from answers a
+    where a.question_id = p_question_id and a.user_id = auth.uid()
   ) then
     return;
   end if;
