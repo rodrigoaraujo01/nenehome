@@ -22,6 +22,7 @@ const REASON_META: Record<string, { label: string; icon: string; colorClass: str
   correct_answer:   { label: "Respostas corretas", icon: "✓", colorClass: "text-green" },
   question_created: { label: "Perguntas criadas",  icon: "✏️", colorClass: "text-accent" },
   creator_penalty:  { label: "Penalidades",         icon: "✗", colorClass: "text-red-400" },
+  achievement:      { label: "Conquistas",          icon: "🏆", colorClass: "text-accent" },
 };
 
 function PointsBreakdown({ entries }: { entries: PointsLogEntry[] }) {
