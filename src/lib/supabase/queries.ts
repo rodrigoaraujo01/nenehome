@@ -5,6 +5,7 @@ import type {
   LeaderboardEntry,
   AnswerResult,
   ProfileStats,
+  PointsLogEntry,
   DbPhotoSubmission,
   DbPhotoChallenge,
   VoteResult,
@@ -270,6 +271,15 @@ export async function getProfileStats(nickname: string): Promise<ProfileStats | 
     questions_created,
     recent_answers: answers as unknown as ProfileStats["recent_answers"],
   };
+}
+
+export async function getPointsLog(userId: string): Promise<PointsLogEntry[]> {
+  const { data } = await getSupabase()
+    .from("points_log")
+    .select("id, amount, reason, ref_id, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false });
+  return (data ?? []) as PointsLogEntry[];
 }
 
 // ─── Photo challenges ─────────────────────────────────────────────────────────

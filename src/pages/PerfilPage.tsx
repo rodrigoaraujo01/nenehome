@@ -12,10 +12,58 @@ import {
   getUserAchievements,
   getNenecoinBalance,
   giftNenecoins,
+  getPointsLog,
 } from "@/lib/supabase/queries";
 import { useAuth } from "@/hooks/useAuth";
 import { getSupabase } from "@/lib/supabase/client";
-import type { ProfileStats, DbAchievement, NenecoinBalance } from "@/lib/types";
+import type { ProfileStats, DbAchievement, NenecoinBalance, PointsLogEntry } from "@/lib/types";
+
+const REASON_META: Record<string, { label: string; icon: string; colorClass: string }> = {
+  correct_answer:   { label: "Respostas corretas", icon: "✓", colorClass: "text-green" },
+  question_created: { label: "Perguntas criadas",  icon: "✏️", colorClass: "text-accent" },
+  creator_penalty:  { label: "Penalidades",         icon: "✗", colorClass: "text-red-400" },
+};
+
+function PointsBreakdown({ entries }: { entries: PointsLogEntry[] }) {
+  const byReason = entries.reduce<Record<string, { total: number; count: number }>>(
+    (acc, e) => {
+      if (!acc[e.reason]) acc[e.reason] = { total: 0, count: 0 };
+      acc[e.reason].total += e.amount;
+      acc[e.reason].count += 1;
+      return acc;
+    },
+    {}
+  );
+
+  const rows = Object.entries(byReason).sort((a, b) => b[1].total - a[1].total);
+
+  return (
+    <div className="w-full">
+      <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
+        Origem dos pontos
+      </h3>
+      <Card>
+        <div className="space-y-3">
+          {rows.map(([reason, { total, count }]) => {
+            const meta = REASON_META[reason] ?? { label: reason, icon: "·", colorClass: "text-foreground" };
+            return (
+              <div key={reason} className="flex items-center gap-3">
+                <span className={`text-sm font-bold w-5 text-center shrink-0 ${meta.colorClass}`}>
+                  {meta.icon}
+                </span>
+                <span className="text-sm flex-1">{meta.label}</span>
+                <span className="text-xs text-muted shrink-0">{count}×</span>
+                <span className={`text-sm font-bold tabular-nums shrink-0 ${total >= 0 ? "text-foreground" : "text-red-400"}`}>
+                  {total >= 0 ? "+" : ""}{total} pts
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </Card>
+    </div>
+  );
+}
 
 async function getProfileIdByNickname(nickname: string): Promise<string | null> {
   const { data } = await getSupabase()
@@ -34,6 +82,7 @@ export default function PerfilPage() {
   const [achievements, setAchievements] = useState<DbAchievement[]>([]);
   const [balance, setBalance] = useState<NenecoinBalance | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
+  const [pointsLog, setPointsLog] = useState<PointsLogEntry[]>([]);
 
   // Gift modal state
   const [showGift, setShowGift] = useState(false);
@@ -58,7 +107,10 @@ export default function PerfilPage() {
     if (!member) return;
     getProfileIdByNickname(member.nickname).then((id) => {
       setProfileId(id);
-      if (id) getUserAchievements(id).then(setAchievements);
+      if (id) {
+        getUserAchievements(id).then(setAchievements);
+        getPointsLog(id).then(setPointsLog);
+      }
     });
   }, [member]);
 
@@ -245,6 +297,8 @@ export default function PerfilPage() {
               </Card>
             </div>
           )}
+
+          {pointsLog.length > 0 && <PointsBreakdown entries={pointsLog} />}
 
           {!loadingStats && stats && stats.recent_answers.length > 0 && (
             <div className="w-full">
