@@ -46,6 +46,17 @@ export interface DbAnswer {
   created_at: string;
 }
 
+export interface QuestionAnswer {
+  id: string;
+  user_id: string;
+  selected_option_id: string | null;
+  subject_guess_id: string | null;
+  is_correct: boolean;
+  created_at: string;
+  nickname: string;
+  avatar_url: string | null;
+}
+
 export interface DbQuestion {
   id: string;
   creator_id: string;

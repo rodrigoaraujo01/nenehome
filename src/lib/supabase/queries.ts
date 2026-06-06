@@ -22,6 +22,7 @@ import type {
   WcLeaderboardEntry,
   WcPredictionResult,
   WcScoreResult,
+  QuestionAnswer,
 } from "@/lib/types";
 import { MEMBERS } from "@/lib/constants";
 
@@ -192,6 +193,16 @@ export async function createQuestion(params: {
   }
   const result = data as { id: string; achievements: UnlockedAchievement[] };
   return { id: result.id, achievements: result.achievements ?? [] };
+}
+
+// ─── Get all answers for a question (only if current user has answered) ──────
+
+export async function getQuestionAnswers(questionId: string): Promise<QuestionAnswer[]> {
+  const { data, error } = await getSupabase().rpc("get_question_answers", {
+    p_question_id: questionId,
+  });
+  if (error || !data) return [];
+  return data as QuestionAnswer[];
 }
 
 // ─── Submit answer (via RPC) ──────────────────────────────────────────────────
