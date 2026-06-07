@@ -45,7 +45,17 @@ const TX_LABELS: Record<string, string> = {
 
 function NenecoinHistory({ entries }: { entries: NenecoinLedgerEntry[] }) {
   const [expanded, setExpanded] = useState(false);
-  const visible = expanded ? entries : entries.slice(0, 5);
+
+  const refundedBetIds = new Set(
+    entries
+      .filter((e) => e.tx_type === "bet_refund" && e.ref_id)
+      .map((e) => e.ref_id as string)
+  );
+  const filtered = entries.filter(
+    (e) => !(e.ref_id && refundedBetIds.has(e.ref_id) && (e.tx_type === "bet_placed" || e.tx_type === "bet_refund"))
+  );
+
+  const visible = expanded ? filtered : filtered.slice(0, 5);
 
   return (
     <div className="w-full">
@@ -80,12 +90,12 @@ function NenecoinHistory({ entries }: { entries: NenecoinLedgerEntry[] }) {
             );
           })}
         </div>
-        {entries.length > 5 && (
+        {filtered.length > 5 && (
           <button
             onClick={() => setExpanded((v) => !v)}
             className="mt-3 w-full text-xs text-muted hover:text-foreground transition-colors text-center pt-3 border-t border-border"
           >
-            {expanded ? "Ver menos" : `Ver todos (${entries.length})`}
+            {expanded ? "Ver menos" : `Ver todos (${filtered.length})`}
           </button>
         )}
       </Card>
