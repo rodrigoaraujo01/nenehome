@@ -221,6 +221,24 @@ export interface GiftResult {
   error?: string;
 }
 
+export interface NenecoinLedgerEntry {
+  id: string;
+  amount: number;
+  coin_type: "nenecoin" | "firecoin";
+  tx_type: string;
+  note: string | null;
+  ref_id: string | null;
+  created_at: string;
+}
+
+export interface GiftMessage {
+  id: string;
+  amount: number;
+  note: string | null;
+  sender_nickname: string | null;
+  created_at: string;
+}
+
 // ─── Bets ─────────────────────────────────────────────────────────────────────
 
 export interface BetOption {

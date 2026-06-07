@@ -15,6 +15,8 @@ import type {
   WeeklyBonusResult,
   ConvertResult,
   GiftResult,
+  NenecoinLedgerEntry,
+  GiftMessage,
   DbBet,
   PlaceBetResult,
   ResolveBetResult,
@@ -576,6 +578,47 @@ export async function giftNenecoins(
   });
   if (error) return { error: error.message };
   return data as GiftResult;
+}
+
+export async function getNenecoinHistory(userId: string): Promise<NenecoinLedgerEntry[]> {
+  const { data, error } = await getSupabase()
+    .from("nenecoins_ledger")
+    .select("id, amount, coin_type, tx_type, note, ref_id, created_at")
+    .eq("user_id", userId)
+    .order("created_at", { ascending: false })
+    .limit(50);
+  if (error) { console.error("getNenecoinHistory:", error); return []; }
+  return (data ?? []) as NenecoinLedgerEntry[];
+}
+
+export async function getGiftMessages(userId: string): Promise<GiftMessage[]> {
+  const { data, error } = await getSupabase()
+    .from("nenecoins_ledger")
+    .select("id, amount, note, created_at, ref_id")
+    .eq("user_id", userId)
+    .eq("tx_type", "gift_received")
+    .order("created_at", { ascending: false });
+
+  if (error || !data || data.length === 0) return [];
+
+  const senderIds = [...new Set(data.map((e) => e.ref_id).filter(Boolean) as string[])];
+  let profileMap = new Map<string, string>();
+
+  if (senderIds.length > 0) {
+    const { data: profiles } = await getSupabase()
+      .from("profiles")
+      .select("id, nickname")
+      .in("id", senderIds);
+    profileMap = new Map((profiles ?? []).map((p) => [p.id, p.nickname]));
+  }
+
+  return data.map((e) => ({
+    id: e.id,
+    amount: e.amount,
+    note: e.note,
+    sender_nickname: e.ref_id ? (profileMap.get(e.ref_id) ?? null) : null,
+    created_at: e.created_at,
+  }));
 }
 
 // ─── Bets ─────────────────────────────────────────────────────────────────────
