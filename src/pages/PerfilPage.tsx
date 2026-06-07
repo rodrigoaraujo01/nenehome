@@ -180,9 +180,7 @@ export default function PerfilPage() {
       if (id) {
         getUserAchievements(id).then(setAchievements);
         getPointsLog(id).then(setPointsLog);
-        if (currentUser && currentUser.nickname.toLowerCase() === nickname.toLowerCase()) {
-          getNenecoinHistory(id).then(setCoinHistory);
-        }
+        getNenecoinHistory(id).then(setCoinHistory);
       }
     });
   }, [member]);
@@ -373,7 +371,7 @@ export default function PerfilPage() {
 
           {pointsLog.length > 0 && <PointsBreakdown entries={pointsLog} />}
 
-          {isOwnProfile && coinHistory.length > 0 && (
+          {coinHistory.length > 0 && (
             <NenecoinHistory entries={coinHistory} />
           )}
 
