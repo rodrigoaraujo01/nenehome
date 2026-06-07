@@ -35,7 +35,7 @@ export default function PerguntaPage() {
     if (!profile || !id) return;
     getQuestion(id, profile.id).then(async (q) => {
       setQuestion(q);
-      if (q?.my_answer) {
+      if (q?.my_answer || q?.creator_id === profile.id) {
         const answers = await getQuestionAnswers(id);
         setAllAnswers(answers);
       }
@@ -108,7 +108,7 @@ export default function PerguntaPage() {
       ? ADULTS.find((m) => m.nickname === question.subject_id)
       : null;
 
-  const showReveal = alreadyAnswered || !!result;
+  const showReveal = isCreator || alreadyAnswered || !!result;
 
   return (
     <>
@@ -141,7 +141,7 @@ export default function PerguntaPage() {
           <p className="text-lg leading-relaxed">{question.content}</p>
 
           {/* result banner */}
-          {showReveal && (
+          {showReveal && !isCreator && (
             <div
               className={`rounded-2xl px-5 py-4 border ${
                 isCorrect
