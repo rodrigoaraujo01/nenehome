@@ -41,19 +41,31 @@ const TX_LABELS: Record<string, string> = {
   gift_received:        "Presente recebido",
   fire_conversion_out:  "Aposentadoria",
   fire_conversion_in:   "Firecoin recebido",
+  wc_bet_placed:        "Aposta Copa 2026",
+  wc_bet_won:           "Aposta Copa 2026 ganha",
+  wc_bet_refund:        "Reembolso Copa 2026",
 };
 
 function NenecoinHistory({ entries }: { entries: NenecoinLedgerEntry[] }) {
   const [expanded, setExpanded] = useState(false);
 
+  // Regular bets: hide both bet_placed and bet_refund when a refund exists for that ref_id
   const refundedBetIds = new Set(
     entries
       .filter((e) => e.tx_type === "bet_refund" && e.ref_id)
       .map((e) => e.ref_id as string)
   );
-  const filtered = entries.filter(
-    (e) => !(e.ref_id && refundedBetIds.has(e.ref_id) && (e.tx_type === "bet_placed" || e.tx_type === "bet_refund"))
-  );
+  // WC bets: hide all wc_bet_refund; deduplicate wc_bet_placed per match (keep latest — entries are newest-first)
+  const seenWcBets = new Set<string>();
+  const filtered = entries.filter((e) => {
+    if (e.ref_id && refundedBetIds.has(e.ref_id) && (e.tx_type === "bet_placed" || e.tx_type === "bet_refund")) return false;
+    if (e.tx_type === "wc_bet_refund") return false;
+    if (e.tx_type === "wc_bet_placed" && e.ref_id) {
+      if (seenWcBets.has(e.ref_id)) return false;
+      seenWcBets.add(e.ref_id);
+    }
+    return true;
+  });
 
   const visible = expanded ? filtered : filtered.slice(0, 5);
 
