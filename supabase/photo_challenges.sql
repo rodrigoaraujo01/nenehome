@@ -193,3 +193,69 @@ begin
   );
 end;
 $$;
+
+-- ─────────────────────────────────────────────
+-- RPC: delete_photo_challenge
+-- Creator-only. Undoes everything the challenge put into the points
+-- system before removing it:
+--   • the 'challenge_completed' points each completer earned
+--   • the 'challenger_1' / 'challenger_3' achievements (and their points)
+--     for any completer who, without this challenge, no longer meets the
+--     threshold
+-- Linked photo submissions survive (challenge_id is set to null via the FK)
+-- so their independently-earned 'photo_approved' points are left intact.
+-- ─────────────────────────────────────────────
+create or replace function delete_photo_challenge(p_challenge_id uuid)
+returns json
+language plpgsql
+security definer
+as $$
+declare
+  v_user_id   uuid := auth.uid();
+  v_challenge photo_challenges%rowtype;
+  v_affected  uuid[];
+  v_uid       uuid;
+  v_remaining int;
+begin
+  select * into v_challenge from photo_challenges where id = p_challenge_id;
+  if not found then
+    return json_build_object('error', 'Desafio não encontrado');
+  end if;
+
+  -- only the creator may delete their challenge
+  if v_challenge.creator_id != v_user_id then
+    return json_build_object('error', 'Apenas o criador pode excluir o desafio');
+  end if;
+
+  -- capture everyone who completed it before we remove the completions
+  select array_agg(distinct user_id) into v_affected
+    from photo_challenge_completions where challenge_id = p_challenge_id;
+
+  -- undo the challenge-completion points awarded for this challenge
+  delete from points_log
+    where reason = 'challenge_completed' and ref_id = p_challenge_id;
+
+  -- remove the completions (also handled by the FK cascade, but we need
+  -- them gone before recomputing achievement eligibility below)
+  delete from photo_challenge_completions where challenge_id = p_challenge_id;
+
+  -- re-evaluate the challenger achievements for every affected user: keep
+  -- the badge only if their remaining completions still meet the threshold
+  if v_affected is not null then
+    foreach v_uid in array v_affected loop
+      select count(*) into v_remaining
+        from photo_challenge_completions where user_id = v_uid;
+      if v_remaining < 1 then perform revoke_achievement(v_uid, 'challenger_1'); end if;
+      if v_remaining < 3 then perform revoke_achievement(v_uid, 'challenger_3'); end if;
+    end loop;
+  end if;
+
+  -- finally drop the challenge itself (linked submissions are unlinked, not deleted)
+  delete from photo_challenges where id = p_challenge_id;
+
+  return json_build_object(
+    'deleted', true,
+    'completions_undone', coalesce(array_length(v_affected, 1), 0)
+  );
+end;
+$$;

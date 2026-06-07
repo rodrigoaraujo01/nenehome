@@ -6,7 +6,7 @@ import { Header } from "@/components/Header";
 import { Avatar } from "@/components/Avatar";
 import { PhotoCard } from "@/components/PhotoCard";
 import { useAuth } from "@/hooks/useAuth";
-import { getChallenge } from "@/lib/supabase/queries";
+import { getChallenge, deletePhotoChallenge } from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
 import type { DbPhotoChallenge } from "@/lib/types";
 
@@ -17,6 +17,8 @@ export default function DesafioDetailPage() {
 
   const [challenge, setChallenge] = useState<DbPhotoChallenge | null>(null);
   const [fetching, setFetching] = useState(true);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !profile) navigate("/login");
@@ -57,6 +59,25 @@ export default function DesafioDetailPage() {
   const approvedSubs = submissions.filter((s) => s.status === "approved");
 
   const canSubmit = !isExpired && !isCompleted;
+  const isCreator = challenge.creator_id === profile.id;
+
+  async function handleDelete() {
+    if (!challenge) return;
+    const msg =
+      completionCount > 0
+        ? `Excluir "${challenge.title}"? Os pontos de quem completou serão desfeitos.`
+        : `Excluir "${challenge.title}"?`;
+    if (!confirm(msg)) return;
+    setDeleting(true);
+    setDeleteError(null);
+    const result = await deletePhotoChallenge(challenge.id);
+    if (result.error) {
+      setDeleteError(result.error);
+      setDeleting(false);
+    } else {
+      navigate("/fotos/desafios");
+    }
+  }
 
   return (
     <>
@@ -206,6 +227,28 @@ export default function DesafioDetailPage() {
               <p className="text-muted text-sm">
                 Nenhuma foto enviada ainda para este desafio.
               </p>
+            </div>
+          )}
+
+          {isCreator && (
+            <div className="border-t border-border pt-5 space-y-3">
+              {completionCount > 0 && (
+                <p className="text-sm text-muted">
+                  Excluir o desafio desfaz os pontos e conquistas de quem o
+                  completou.
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="text-xs text-red-400 hover:opacity-80 transition-opacity disabled:opacity-50"
+              >
+                {deleting ? "Excluindo..." : "Excluir desafio"}
+              </button>
+              {deleteError && (
+                <p className="text-xs text-red-400">{deleteError}</p>
+              )}
             </div>
           )}
         </div>

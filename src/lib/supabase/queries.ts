@@ -392,6 +392,16 @@ export async function createPhotoChallenge(params: {
   return data as { id: string };
 }
 
+export async function deletePhotoChallenge(
+  challengeId: string,
+): Promise<{ error?: string }> {
+  const { data, error } = await getSupabase().rpc("delete_photo_challenge", {
+    p_challenge_id: challengeId,
+  });
+  if (error) return { error: error.message };
+  return data as { error?: string };
+}
+
 // ─── Photo submissions ────────────────────────────────────────────────────────
 
 export async function getPhotoSubmissions(

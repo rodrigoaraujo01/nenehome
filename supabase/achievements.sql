@@ -82,6 +82,35 @@ end;
 $$;
 
 -- ─────────────────────────────────────────────
+-- Helper: revoke_achievement
+-- Removes an unlocked achievement and undoes the points it awarded.
+-- No-op if the user doesn't have it. Inverse of grant_achievement.
+-- ─────────────────────────────────────────────
+create or replace function revoke_achievement(p_user_id uuid, p_key text)
+returns void
+language plpgsql
+security definer
+as $$
+declare
+  v_ach achievements%rowtype;
+begin
+  select * into v_ach from achievements where key = p_key;
+  if not found then return; end if;
+
+  delete from user_achievements
+    where user_id = p_user_id and achievement_id = v_ach.id;
+
+  -- if the user didn't have it, there are no points to undo
+  if not found then return; end if;
+
+  if v_ach.points_reward > 0 then
+    delete from points_log
+      where user_id = p_user_id and reason = 'achievement' and ref_id = v_ach.id;
+  end if;
+end;
+$$;
+
+-- ─────────────────────────────────────────────
 -- Trigger: welcome achievement on first login
 -- ─────────────────────────────────────────────
 create or replace function on_profile_created()
