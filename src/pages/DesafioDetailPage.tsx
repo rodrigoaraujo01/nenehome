@@ -63,10 +63,10 @@ export default function DesafioDetailPage() {
 
   async function handleDelete() {
     if (!challenge) return;
-    const msg =
-      completionCount > 0
-        ? `Excluir "${challenge.title}"? Os pontos de quem completou serão desfeitos.`
-        : `Excluir "${challenge.title}"?`;
+    const hasData = completionCount > 0 || submissions.length > 0;
+    const msg = hasData
+      ? `Excluir "${challenge.title}"? As fotos enviadas serão apagadas e todos os pontos e conquistas relacionados serão desfeitos, como se o desafio nunca tivesse existido.`
+      : `Excluir "${challenge.title}"?`;
     if (!confirm(msg)) return;
     setDeleting(true);
     setDeleteError(null);
@@ -232,10 +232,11 @@ export default function DesafioDetailPage() {
 
           {isCreator && (
             <div className="border-t border-border pt-5 space-y-3">
-              {completionCount > 0 && (
+              {(completionCount > 0 || submissions.length > 0) && (
                 <p className="text-sm text-muted">
-                  Excluir o desafio desfaz os pontos e conquistas de quem o
-                  completou.
+                  Excluir apaga as fotos enviadas e desfaz todos os pontos e
+                  conquistas relacionados, como se o desafio nunca tivesse
+                  existido.
                 </p>
               )}
               <button
