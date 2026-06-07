@@ -34,8 +34,10 @@ export default function PerguntasPage() {
     );
   }
 
-  const unanswered = questions.filter((q) => !q.my_answer);
-  const answered = questions.filter((q) => q.my_answer);
+  const mine = questions.filter((q) => q.creator_id === profile.id);
+  const others = questions.filter((q) => q.creator_id !== profile.id);
+  const unanswered = others.filter((q) => !q.my_answer);
+  const answered = others.filter((q) => q.my_answer);
 
   return (
     <>
@@ -96,6 +98,19 @@ export default function PerguntasPage() {
                   </h3>
                   <div className="space-y-3">
                     {answered.map((q) => (
+                      <QuestionCard key={q.id} question={q} />
+                    ))}
+                  </div>
+                </section>
+              )}
+
+              {mine.length > 0 && (
+                <section>
+                  <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
+                    Minhas perguntas ({mine.length})
+                  </h3>
+                  <div className="space-y-3">
+                    {mine.map((q) => (
                       <QuestionCard key={q.id} question={q} />
                     ))}
                   </div>
