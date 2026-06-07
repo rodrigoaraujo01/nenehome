@@ -242,6 +242,9 @@ begin
   if v_question.status = 'closed' then
     raise exception 'question is closed';
   end if;
+  if v_user_id = v_question.creator_id then
+    raise exception 'creator cannot answer own question';
+  end if;
 
   -- determine correctness
   if v_question.type = 'multiple_choice' then

@@ -62,6 +62,7 @@ export default function PerguntaPage() {
     );
   }
 
+  const isCreator = profile.id === question.creator_id;
   const alreadyAnswered = !!question.my_answer;
   const isCorrect = question.my_answer?.is_correct ?? result?.is_correct;
   const displaySelectedOptionId =
@@ -94,6 +95,7 @@ export default function PerguntaPage() {
   }
 
   const canSubmit =
+    !isCreator &&
     !alreadyAnswered &&
     !result &&
     (question.type === "multiple_choice"
@@ -174,8 +176,15 @@ export default function PerguntaPage() {
             </div>
           )}
 
+          {/* creator notice */}
+          {isCreator && (
+            <div className="rounded-2xl px-5 py-4 border border-border bg-surface text-center">
+              <p className="text-sm text-muted">Você criou esta pergunta e não pode respondê-la.</p>
+            </div>
+          )}
+
           {/* multiple choice options */}
-          {question.type === "multiple_choice" && question.options && (
+          {!isCreator && question.type === "multiple_choice" && question.options && (
             <div className="space-y-2">
               {question.options.map((opt, i) => {
                 const isSelected = displaySelectedOptionId === opt.id;
@@ -221,7 +230,7 @@ export default function PerguntaPage() {
           )}
 
           {/* story: member picker */}
-          {question.type === "story" && (
+          {!isCreator && question.type === "story" && (
             <div>
               {!showReveal && (
                 <p className="text-sm text-muted mb-3">
@@ -320,7 +329,7 @@ export default function PerguntaPage() {
           )}
 
           {/* action buttons */}
-          {!alreadyAnswered && !result && (
+          {!isCreator && !alreadyAnswered && !result && (
             <Button
               onClick={handleSubmit}
               disabled={!canSubmit || submitting}
