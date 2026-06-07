@@ -132,6 +132,9 @@ begin
   if not exists (
     select 1 from answers a
     where a.question_id = p_question_id and a.user_id = auth.uid()
+  ) and not exists (
+    select 1 from questions q
+    where q.id = p_question_id and q.creator_id = auth.uid()
   ) then
     return;
   end if;
