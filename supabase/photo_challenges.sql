@@ -193,3 +193,119 @@ begin
   );
 end;
 $$;
+
+-- ─────────────────────────────────────────────
+-- RPC: delete_photo_challenge
+-- Creator-only. Wipes the challenge as if it never existed:
+--   • deletes every linked photo submission (any status), its votes and
+--     its files in storage
+--   • undoes the points those submissions and completions earned
+--     ('photo_approved' + 'challenge_completed')
+--   • re-evaluates every achievement whose count may have dropped
+--     (photographer_1/3, voter_5, challenger_1/3) and the points_100/500
+--     milestones, revoking each badge (and refunding its points) when the
+--     user no longer qualifies
+-- Runs as security definer so it can remove other members' photos and
+-- storage objects, which RLS would otherwise block.
+-- ─────────────────────────────────────────────
+create or replace function delete_photo_challenge(p_challenge_id uuid)
+returns json
+language plpgsql
+security definer
+as $$
+declare
+  v_user_id        uuid := auth.uid();
+  v_challenge      photo_challenges%rowtype;
+  v_sub_ids        uuid[];
+  v_paths          text[];
+  v_affected       uuid[];
+  v_uid            uuid;
+  v_remaining      int;
+  v_total          int;
+  v_storage_error  text := null;
+begin
+  select * into v_challenge from photo_challenges where id = p_challenge_id;
+  if not found then
+    return json_build_object('error', 'Desafio não encontrado');
+  end if;
+
+  -- only the creator may delete their challenge
+  if v_challenge.creator_id != v_user_id then
+    return json_build_object('error', 'Apenas o criador pode excluir o desafio');
+  end if;
+
+  -- all submissions tied to this challenge, regardless of status
+  select array_agg(id), array_agg(storage_path)
+    into v_sub_ids, v_paths
+    from photo_submissions where challenge_id = p_challenge_id;
+
+  -- everyone whose points/achievements this challenge could have touched:
+  -- submitters of those photos, anyone who voted on them, and completers
+  select array_agg(distinct uid) into v_affected from (
+    select submitter_id as uid from photo_submissions where challenge_id = p_challenge_id
+    union
+    select voter_id from photo_votes
+      where submission_id = any(coalesce(v_sub_ids, '{}'::uuid[]))
+    union
+    select user_id from photo_challenge_completions where challenge_id = p_challenge_id
+  ) u;
+
+  -- undo the points that flowed from this challenge
+  delete from points_log
+    where reason = 'challenge_completed' and ref_id = p_challenge_id;
+  if v_sub_ids is not null then
+    delete from points_log
+      where reason = 'photo_approved' and ref_id = any(v_sub_ids);
+  end if;
+
+  -- wipe the actual photo files from storage (best effort — failing to
+  -- remove the binaries must not abort the rest of the reversal)
+  if v_paths is not null then
+    begin
+      delete from storage.objects
+        where bucket_id = 'photo-submissions' and name = any(v_paths);
+    exception when others then
+      v_storage_error := SQLERRM;
+    end;
+  end if;
+
+  -- delete the submissions (cascades photo_votes and the completion rows
+  -- that referenced them), then the challenge itself
+  delete from photo_submissions where challenge_id = p_challenge_id;
+  delete from photo_challenge_completions where challenge_id = p_challenge_id;
+  delete from photo_challenges where id = p_challenge_id;
+
+  -- re-evaluate every count-based achievement, revoking (and refunding the
+  -- points of) any the affected users no longer qualify for
+  if v_affected is not null then
+    foreach v_uid in array v_affected loop
+      select count(*) into v_remaining
+        from photo_submissions where submitter_id = v_uid and status = 'approved';
+      if v_remaining < 1 then perform revoke_achievement(v_uid, 'photographer_1'); end if;
+      if v_remaining < 3 then perform revoke_achievement(v_uid, 'photographer_3'); end if;
+
+      select count(*) into v_remaining from photo_votes where voter_id = v_uid;
+      if v_remaining < 5 then perform revoke_achievement(v_uid, 'voter_5'); end if;
+
+      select count(*) into v_remaining
+        from photo_challenge_completions where user_id = v_uid;
+      if v_remaining < 1 then perform revoke_achievement(v_uid, 'challenger_1'); end if;
+      if v_remaining < 3 then perform revoke_achievement(v_uid, 'challenger_3'); end if;
+    end loop;
+
+    -- milestones last: a user's total has now settled after every refund
+    foreach v_uid in array v_affected loop
+      select coalesce(sum(amount), 0) into v_total
+        from points_log where user_id = v_uid;
+      if v_total < 100 then perform revoke_achievement(v_uid, 'points_100'); end if;
+      if v_total < 500 then perform revoke_achievement(v_uid, 'points_500'); end if;
+    end loop;
+  end if;
+
+  return json_build_object(
+    'deleted', true,
+    'photos_removed', coalesce(array_length(v_sub_ids, 1), 0),
+    'storage_error', v_storage_error
+  );
+end;
+$$;
