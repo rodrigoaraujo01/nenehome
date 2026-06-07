@@ -55,6 +55,7 @@ export default function DesafioDetailPage() {
   const submissions = challenge.submissions ?? [];
   const pendingSubs = submissions.filter((s) => s.status === "pending");
   const approvedSubs = submissions.filter((s) => s.status === "approved");
+  const rejectedSubs = submissions.filter((s) => s.status === "rejected");
 
   const canSubmit = !isExpired && !isCompleted;
 
@@ -191,6 +192,23 @@ export default function DesafioDetailPage() {
               </h3>
               <div className="grid grid-cols-2 gap-3">
                 {approvedSubs.map((s) => (
+                  <PhotoCard
+                    key={s.id}
+                    submission={s}
+                    currentUserId={profile.id}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+
+          {rejectedSubs.length > 0 && (
+            <section>
+              <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
+                Rejeitadas ({rejectedSubs.length})
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                {rejectedSubs.map((s) => (
                   <PhotoCard
                     key={s.id}
                     submission={s}

@@ -42,12 +42,11 @@ export default function FotosPage() {
 
   const pending = submissions.filter((s) => s.status === "pending");
   const approved = submissions.filter((s) => s.status === "approved");
-  const rejected = submissions.filter((s) => s.status === "rejected");
   const now = new Date();
   const activeChallenges = challenges.filter((c) => new Date(c.deadline) >= now);
   const expiredChallenges = challenges.filter((c) => new Date(c.deadline) < now);
 
-  const hasContent = activeChallenges.length > 0 || pending.length > 0 || approved.length > 0 || rejected.length > 0 || expiredChallenges.length > 0;
+  const hasContent = activeChallenges.length > 0 || pending.length > 0 || approved.length > 0 || expiredChallenges.length > 0;
 
   return (
     <>
@@ -128,23 +127,6 @@ export default function FotosPage() {
                   </h3>
                   <div className="grid grid-cols-2 gap-3">
                     {approved.map((s) => (
-                      <PhotoCard
-                        key={s.id}
-                        submission={s}
-                        currentUserId={profile.id}
-                      />
-                    ))}
-                  </div>
-                </section>
-              )}
-
-              {rejected.length > 0 && (
-                <section>
-                  <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
-                    Rejeitadas ({rejected.length})
-                  </h3>
-                  <div className="grid grid-cols-2 gap-3">
-                    {rejected.map((s) => (
                       <PhotoCard
                         key={s.id}
                         submission={s}
