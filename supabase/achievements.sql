@@ -292,7 +292,7 @@ begin
     end if;
     perform check_points_achievements(v_submission.submitter_id);
 
-  elsif v_reject_count > (v_eligible - v_submission.votes_to_approve) then
+  elsif v_reject_count >= 4 then
     v_new_status := 'rejected';
     update photo_submissions set status = 'rejected' where id = p_submission_id;
   end if;
