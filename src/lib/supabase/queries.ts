@@ -819,7 +819,7 @@ export async function getNudgeCounts(userId: string): Promise<NudgeCounts> {
     userPredictionsRes,
     questionsCreatedRes,
   ] = await Promise.all([
-    sb.from("questions").select("id").eq("status", "active"),
+    sb.from("questions").select("id, creator_id").eq("status", "active"),
     sb.from("answers").select("question_id").eq("user_id", userId),
     sb
       .from("photo_submissions")
@@ -847,7 +847,7 @@ export async function getNudgeCounts(userId: string): Promise<NudgeCounts> {
     (userAnswersRes.data ?? []).map((a) => a.question_id),
   );
   const unansweredQuestions = (activeQuestionsRes.data ?? []).filter(
-    (q) => !answeredIds.has(q.id),
+    (q) => q.creator_id !== userId && !answeredIds.has(q.id),
   ).length;
 
   const votedIds = new Set(
