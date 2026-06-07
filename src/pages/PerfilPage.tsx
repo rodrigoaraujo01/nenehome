@@ -13,17 +13,85 @@ import {
   getNenecoinBalance,
   giftNenecoins,
   getPointsLog,
+  getNenecoinHistory,
 } from "@/lib/supabase/queries";
 import { useAuth } from "@/hooks/useAuth";
 import { getSupabase } from "@/lib/supabase/client";
-import type { ProfileStats, DbAchievement, NenecoinBalance, PointsLogEntry } from "@/lib/types";
+import type { ProfileStats, DbAchievement, NenecoinBalance, PointsLogEntry, NenecoinLedgerEntry } from "@/lib/types";
 
 const REASON_META: Record<string, { label: string; icon: string; colorClass: string }> = {
-  correct_answer:   { label: "Respostas corretas", icon: "✓", colorClass: "text-green" },
-  question_created: { label: "Perguntas criadas",  icon: "✏️", colorClass: "text-accent" },
-  creator_penalty:  { label: "Penalidades",         icon: "✗", colorClass: "text-red-400" },
-  achievement:      { label: "Conquistas",          icon: "🏆", colorClass: "text-accent" },
+  correct_answer:      { label: "Respostas corretas",   icon: "✓",  colorClass: "text-green" },
+  question_created:    { label: "Perguntas criadas",    icon: "✏️", colorClass: "text-accent" },
+  creator_penalty:     { label: "Penalidades",          icon: "✗",  colorClass: "text-red-400" },
+  achievement:         { label: "Conquistas",           icon: "🏆", colorClass: "text-accent" },
+  photo_approved:      { label: "Fotos aprovadas",      icon: "📸", colorClass: "text-purple" },
+  challenge_completed: { label: "Desafios concluídos",  icon: "🏅", colorClass: "text-yellow" },
+  nenecoin_conversion: { label: "Conversão em nenecoins", icon: "🪙", colorClass: "text-red-400" },
+  wc_tournament_bonus: { label: "Bônus da Copa",        icon: "⚽", colorClass: "text-green" },
 };
+
+const TX_LABELS: Record<string, string> = {
+  initial:              "Bônus inicial",
+  weekly_bonus:         "Mesada semanal",
+  points_conversion:    "Conversão de pontos",
+  bet_placed:           "Aposta realizada",
+  bet_won:              "Aposta ganha",
+  bet_refund:           "Reembolso de aposta",
+  gift_sent:            "Presente enviado",
+  gift_received:        "Presente recebido",
+  fire_conversion_out:  "Aposentadoria",
+  fire_conversion_in:   "Firecoin recebido",
+};
+
+function NenecoinHistory({ entries }: { entries: NenecoinLedgerEntry[] }) {
+  const [expanded, setExpanded] = useState(false);
+  const visible = expanded ? entries : entries.slice(0, 5);
+
+  return (
+    <div className="w-full">
+      <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
+        Histórico de nenecoins
+      </h3>
+      <Card>
+        <div className="space-y-3">
+          {visible.map((e) => {
+            const isPositive = e.amount > 0;
+            const coinIcon = e.coin_type === "firecoin" ? "🔥" : "🪙";
+            const label = TX_LABELS[e.tx_type] ?? e.tx_type;
+            const date = new Date(e.created_at).toLocaleDateString("pt-BR", {
+              day: "2-digit", month: "2-digit", year: "2-digit",
+            });
+            return (
+              <div key={e.id} className="flex items-start gap-3">
+                <span className="text-base shrink-0">{coinIcon}</span>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold leading-tight">{label}</p>
+                  {e.note && (
+                    <p className="text-xs text-muted leading-tight mt-0.5 truncate">{e.note}</p>
+                  )}
+                </div>
+                <div className="text-right shrink-0">
+                  <p className={`text-sm font-bold tabular-nums ${isPositive ? "text-green" : "text-red-400"}`}>
+                    {isPositive ? "+" : ""}{e.amount}
+                  </p>
+                  <p className="text-[10px] text-muted">{date}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        {entries.length > 5 && (
+          <button
+            onClick={() => setExpanded((v) => !v)}
+            className="mt-3 w-full text-xs text-muted hover:text-foreground transition-colors text-center pt-3 border-t border-border"
+          >
+            {expanded ? "Ver menos" : `Ver todos (${entries.length})`}
+          </button>
+        )}
+      </Card>
+    </div>
+  );
+}
 
 function PointsBreakdown({ entries }: { entries: PointsLogEntry[] }) {
   const byReason = entries.reduce<Record<string, { total: number; count: number }>>(
@@ -84,6 +152,7 @@ export default function PerfilPage() {
   const [balance, setBalance] = useState<NenecoinBalance | null>(null);
   const [profileId, setProfileId] = useState<string | null>(null);
   const [pointsLog, setPointsLog] = useState<PointsLogEntry[]>([]);
+  const [coinHistory, setCoinHistory] = useState<NenecoinLedgerEntry[]>([]);
 
   // Gift modal state
   const [showGift, setShowGift] = useState(false);
@@ -111,6 +180,9 @@ export default function PerfilPage() {
       if (id) {
         getUserAchievements(id).then(setAchievements);
         getPointsLog(id).then(setPointsLog);
+        if (currentUser && currentUser.nickname.toLowerCase() === nickname.toLowerCase()) {
+          getNenecoinHistory(id).then(setCoinHistory);
+        }
       }
     });
   }, [member]);
@@ -300,6 +372,10 @@ export default function PerfilPage() {
           )}
 
           {pointsLog.length > 0 && <PointsBreakdown entries={pointsLog} />}
+
+          {isOwnProfile && coinHistory.length > 0 && (
+            <NenecoinHistory entries={coinHistory} />
+          )}
 
           {!loadingStats && stats && stats.recent_answers.length > 0 && (
             <div className="w-full">

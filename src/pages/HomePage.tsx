@@ -8,9 +8,11 @@ import { Card } from "@/components/ui/Card";
 import { CurrencyBadge } from "@/components/CurrencyBadge";
 import { useAuth } from "@/hooks/useAuth";
 import { useNudges } from "@/hooks/useNudges";
-import { getLeaderboard, getNenecoinBalance } from "@/lib/supabase/queries";
+import { getLeaderboard, getNenecoinBalance, getGiftMessages } from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
-import type { LeaderboardEntry, NenecoinBalance } from "@/lib/types";
+import type { LeaderboardEntry, NenecoinBalance, GiftMessage } from "@/lib/types";
+
+const DISMISSED_KEY = "dismissed_gift_messages";
 
 export default function Home() {
   const { profile, loading } = useAuth();
@@ -18,6 +20,15 @@ export default function Home() {
   const navigate = useNavigate();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [balance, setBalance] = useState<NenecoinBalance | null>(null);
+  const [giftMessages, setGiftMessages] = useState<GiftMessage[]>([]);
+  const [dismissed, setDismissed] = useState<Set<string>>(() => {
+    try {
+      const stored = localStorage.getItem(DISMISSED_KEY);
+      return stored ? new Set(JSON.parse(stored)) : new Set();
+    } catch {
+      return new Set();
+    }
+  });
 
   useEffect(() => {
     if (!loading && !profile) navigate("/login");
@@ -27,6 +38,7 @@ export default function Home() {
     if (!profile) return;
     getLeaderboard().then(setLeaderboard);
     getNenecoinBalance().then(setBalance);
+    getGiftMessages(profile.id).then(setGiftMessages);
   }, [profile]);
 
   if (loading || !profile) {
@@ -42,6 +54,15 @@ export default function Home() {
     leaderboard.findIndex((r) => r.user_id === profile.id) + 1 || null;
   const userPoints =
     leaderboard.find((r) => r.user_id === profile.id)?.total_points ?? 0;
+
+  function dismissGift(id: string) {
+    const next = new Set(dismissed);
+    next.add(id);
+    setDismissed(next);
+    try { localStorage.setItem(DISMISSED_KEY, JSON.stringify([...next])); } catch {}
+  }
+
+  const visibleGifts = giftMessages.filter((m) => !dismissed.has(m.id));
 
   return (
     <>
@@ -87,6 +108,43 @@ export default function Home() {
               />
             )}
           </div>
+
+          {/* gift messages */}
+          {visibleGifts.length > 0 && (
+            <div className="space-y-2">
+              {visibleGifts.map((msg) => {
+                const isCustomNote = msg.note && !msg.note.startsWith("Presente de ");
+                return (
+                  <div
+                    key={msg.id}
+                    className="bg-green/10 border border-green/30 rounded-2xl px-4 py-3 flex items-start gap-3"
+                  >
+                    <span className="text-xl shrink-0">🎁</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold">
+                        {msg.sender_nickname
+                          ? `${msg.sender_nickname} te enviou +${msg.amount} nenecoins`
+                          : `+${msg.amount} nenecoins`}
+                      </p>
+                      {isCustomNote && (
+                        <p className="text-xs text-muted mt-0.5 italic">"{msg.note}"</p>
+                      )}
+                      {!isCustomNote && msg.note && (
+                        <p className="text-xs text-muted mt-0.5">{msg.note}</p>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => dismissGift(msg.id)}
+                      className="text-muted hover:text-foreground transition-colors shrink-0 text-lg leading-none"
+                      aria-label="Dispensar"
+                    >
+                      ×
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Copa 2026 banner */}
           <Link to="/copa" className="block">
