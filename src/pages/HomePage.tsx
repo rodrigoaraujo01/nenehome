@@ -201,7 +201,7 @@ export default function Home() {
             ) : (
               <div className="space-y-2">
                 {nudges.map((nudge) => (
-                  <Link key={nudge.to} to={nudge.to}>
+                  <Link key={nudge.to} to={nudge.to} className="block">
                     <Card className="hover:border-accent/50 transition-colors">
                       <div className="flex items-center gap-3">
                         <span className="text-xl">{nudge.emoji}</span>
