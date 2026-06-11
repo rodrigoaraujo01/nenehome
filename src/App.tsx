@@ -12,6 +12,7 @@ import ApostasNovaPage from "@/pages/ApostasNovaPage";
 import ApostaDetailPage from "@/pages/ApostaDetailPage";
 import PerguntasPage from "@/pages/PerguntasPage";
 import PerguntasNovaPage from "@/pages/PerguntasNovaPage";
+import PerguntasRespondidasPage from "@/pages/PerguntasRespondidasPage";
 import PerguntaDetailPage from "@/pages/PerguntaDetailPage";
 import FotosPage from "@/pages/FotosPage";
 import FotosNovaPage from "@/pages/FotosNovaPage";
@@ -41,6 +42,7 @@ export function App() {
         <Route path="/apostas/:id" element={<ApostaDetailPage />} />
         <Route path="/perguntas" element={<PerguntasPage />} />
         <Route path="/perguntas/nova" element={<PerguntasNovaPage />} />
+        <Route path="/perguntas/respondidas" element={<PerguntasRespondidasPage />} />
         <Route path="/perguntas/:id" element={<PerguntaDetailPage />} />
         <Route path="/fotos" element={<FotosPage />} />
         <Route path="/fotos/nova" element={<FotosNovaPage />} />

@@ -92,16 +92,22 @@ export default function PerguntasPage() {
               )}
 
               {answered.length > 0 && (
-                <section>
-                  <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
-                    Já respondidas ({answered.length})
-                  </h3>
-                  <div className="space-y-3">
-                    {answered.map((q) => (
-                      <QuestionCard key={q.id} question={q} />
-                    ))}
+                <Link
+                  to="/perguntas/respondidas"
+                  className="block bg-surface border border-border rounded-2xl p-4 hover:border-accent/40 transition-colors"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm font-semibold">Já respondidas</p>
+                      <p className="text-xs text-muted mt-0.5">
+                        {answered.length}{" "}
+                        {answered.length === 1 ? "pergunta" : "perguntas"} ·
+                        veja seu aproveitamento
+                      </p>
+                    </div>
+                    <span className="text-muted text-xl">›</span>
                   </div>
-                </section>
+                </Link>
               )}
 
               {mine.length > 0 && (
