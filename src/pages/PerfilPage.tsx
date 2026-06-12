@@ -6,6 +6,7 @@ import { Avatar } from "@/components/Avatar";
 import { Card } from "@/components/ui/Card";
 import { CurrencyBadge } from "@/components/CurrencyBadge";
 import { Button } from "@/components/ui/Button";
+import { PushToggle } from "@/components/PushToggle";
 import { MEMBERS, COUPLES } from "@/lib/constants";
 import {
   getProfileStats,
@@ -465,6 +466,8 @@ export default function PerfilPage() {
               </div>
             </Card>
           )}
+
+          {isOwnProfile && currentUser && <PushToggle userId={currentUser.id} />}
 
           {isOwnProfile && (
             <button

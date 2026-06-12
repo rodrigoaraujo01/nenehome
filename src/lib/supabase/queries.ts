@@ -986,3 +986,31 @@ export async function getNudgeCounts(userId: string): Promise<NudgeCounts> {
     questionsCreated: questionsCreatedRes.count ?? 0,
   };
 }
+
+// ─── Push subscriptions ─────────────────────────────────────────────────────────
+
+export async function savePushSubscription(
+  userId: string,
+  sub: PushSubscription,
+): Promise<void> {
+  const json = sub.toJSON();
+  const { error } = await getSupabase()
+    .from("push_subscriptions")
+    .upsert(
+      {
+        user_id: userId,
+        endpoint: sub.endpoint,
+        p256dh: json.keys?.p256dh ?? "",
+        auth: json.keys?.auth ?? "",
+      },
+      { onConflict: "endpoint" },
+    );
+  if (error) throw error;
+}
+
+export async function deletePushSubscription(endpoint: string): Promise<void> {
+  await getSupabase()
+    .from("push_subscriptions")
+    .delete()
+    .eq("endpoint", endpoint);
+}
