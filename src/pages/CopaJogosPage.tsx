@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/useAuth";
 import { getWcMatches } from "@/lib/supabase/queries";
+import { syncWcFromEspn, type SyncResult } from "@/lib/espn";
 import type { WcMatch } from "@/lib/types";
 
 const STAGE_LABELS: Record<string, string> = {
@@ -101,10 +102,25 @@ export default function CopaJogosPage() {
   const navigate = useNavigate();
   const [matches, setMatches] = useState<WcMatch[]>([]);
   const [fetching, setFetching] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
+
+  const isAdmin = profile?.nickname === "Rodrigo";
 
   useEffect(() => {
     if (!loading && !profile) navigate("/login");
   }, [loading, profile, navigate]);
+
+  async function handleSync() {
+    if (!profile) return;
+    setSyncing(true);
+    setSyncResult(null);
+    const result = await syncWcFromEspn(matches);
+    const fresh = await getWcMatches(profile.id);
+    setMatches(fresh);
+    setSyncResult(result);
+    setSyncing(false);
+  }
 
   useEffect(() => {
     if (!profile) return;
@@ -148,6 +164,67 @@ export default function CopaJogosPage() {
               <h1 className="text-xl font-bold text-foreground">Jogos</h1>
             </Link>
           </div>
+
+          {isAdmin && (
+            <div className="space-y-2">
+              <button
+                onClick={handleSync}
+                disabled={syncing}
+                className="w-full bg-surface border border-border rounded-2xl px-4 py-2.5 text-sm font-semibold text-foreground hover:border-accent/40 disabled:opacity-50 transition-colors"
+              >
+                {syncing ? "Sincronizando..." : "Sincronizar placares (ESPN)"}
+              </button>
+
+              {syncResult && (
+                <div className="bg-surface border border-border rounded-2xl p-4 text-xs space-y-2">
+                  {syncResult.fetchError && (
+                    <p className="text-red-400">{syncResult.fetchError}</p>
+                  )}
+                  {syncResult.updated.length > 0 && (
+                    <div>
+                      <p className="font-bold text-green mb-1">
+                        Atualizados ({syncResult.updated.length})
+                      </p>
+                      {syncResult.updated.map((u, i) => (
+                        <p key={i} className="text-muted">
+                          {u.label}: {u.home} x {u.away}{" "}
+                          <span className="uppercase">
+                            {u.status === "finished" ? "(encerrado)" : "(ao vivo)"}
+                          </span>
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  {syncResult.errors.length > 0 && (
+                    <div>
+                      <p className="font-bold text-red-400 mb-1">
+                        Erros ({syncResult.errors.length})
+                      </p>
+                      {syncResult.errors.map((e, i) => (
+                        <p key={i} className="text-muted">
+                          {e.label}: {e.error}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  {syncResult.unmatched.length > 0 && (
+                    <div>
+                      <p className="font-bold text-muted mb-1">
+                        Não reconhecidos ({syncResult.unmatched.length})
+                      </p>
+                      <p className="text-muted">{syncResult.unmatched.join(", ")}</p>
+                    </div>
+                  )}
+                  {!syncResult.fetchError &&
+                    syncResult.updated.length === 0 &&
+                    syncResult.errors.length === 0 &&
+                    syncResult.unmatched.length === 0 && (
+                      <p className="text-muted">Nenhum jogo ao vivo ou encerrado para atualizar.</p>
+                    )}
+                </div>
+              )}
+            </div>
+          )}
 
           {Object.entries(grouped).map(([dateLabel, dayMatches]) => (
             <section key={dateLabel} className="space-y-3">
