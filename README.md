@@ -1,36 +1,46 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# nenehome
 
-## Getting Started
+Web app que gamifica os encontros e interações de um grupo de 8 amigos. Sistema de pontos, conquistas, perguntas, fotos, desafios e bolão da Copa 2026.
 
-First, run the development server:
+## Stack
+
+- React 19 + Vite + React Router v7 + TypeScript + Tailwind CSS v4
+- Supabase (auth, database, storage)
+- Framer Motion (animações)
+- Vercel (deploy)
+
+## Dev
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
+bun install
 bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+O app roda em `http://localhost:5173`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Variáveis de ambiente
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Crie um `.env` na raiz:
 
-## Learn More
+```
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+```
 
-To learn more about Next.js, take a look at the following resources:
+## Deploy
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Push para o GitHub dispara deploy automático no Vercel. A configuração de framework e rewrites está em `vercel.json`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+As variáveis de ambiente (`VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`) devem estar configuradas no dashboard do Vercel.
 
-## Deploy on Vercel
+## Database
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+O schema do Supabase está em `supabase/`:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `schema.sql` — tabelas base (profiles, questions, answers, points_log, etc.)
+- `photos.sql` — photo_submissions, photo_votes
+- `photo_challenges.sql` — desafios de foto com time-gating
+- `achievements.sql` — catálogo de conquistas e RPCs
+- `nenecoins.sql` — sistema de moedas (nenecoins + firecoins)
+- `bets.sql` — bolões/apostas
+- `worldcup.sql` — bolão da Copa 2026

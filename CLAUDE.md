@@ -95,6 +95,42 @@ Dados importados da ferramenta local de análise do grupo do WhatsApp, recompens
 
 ---
 
+## Economia de Nenecoins
+
+Moeda interna do app, separada dos pontos. Saldo de cada membro é derivado da soma de `nenecoins_ledger` (não há coluna de saldo). Tabela auxiliar `nenecoins_state` guarda atividade e flags por usuário.
+
+### Como se ganha / gasta (tx_types)
+
+- `initial` — saldo inicial concedido no primeiro acesso.
+- `weekly_bonus` — bônus semanal (RPC `claim_weekly_bonuses`).
+- `points_conversion` — converter pontos em nenecoins (RPC `convert_points_to_nenecoins`).
+- `bet_placed` / `bet_won` / `bet_refund` — apostas nos bolões internos.
+- `wc_bet_placed` / `wc_bet_won` / `wc_bet_refund` — apostas do Bolão da Copa.
+- `gift_sent` / `gift_received` — presentear nenecoins entre membros (com mensagem).
+- `fire_conversion_out` / `fire_conversion_in` — conversão de nenecoins ociosas em **firecoins**.
+
+### Firecoins
+
+- Nenecoins paradas por **3 meses** de inatividade viram firecoins (RPC `check_firecoin_conversion`), sinalizado por um popup (`FirecoinPopup` / `firecoin_popup_shown`).
+- Conquista `nenecoin_fire` ("Aposentado") é concedida na conversão.
+
+### UI
+
+- Histórico de nenecoins visível em **todos os perfis** (não só o próprio), com labels pt-BR por `tx_type`.
+- Apostas canceladas (`bet_placed` + `bet_refund` que se anulam) ficam ocultas do histórico.
+- Perfil mostra **breakdown de pontos** por categoria de `reason`.
+
+---
+
+## Funcionalidades por Categoria (estado atual)
+
+- **Perguntas**: criador não pode responder a própria pergunta; criador vê todas as respostas e o resultado; criador pode **deletar** a própria pergunta (wipe completo de respostas/pontos/conquistas).
+- **Fotos / Desafios**: limiar de rejeição = **4** votos; fotos rejeitadas ficam visíveis na página do desafio; criador pode **deletar** um desafio de foto (wipe completo de pontos/conquistas, como se nunca tivesse existido); quem enviou uma foto pode **deletá-la** individualmente (mesmo wipe — pontos de aprovação/desafio, conquistas e arquivo no storage).
+- **Apostas (bolões)**: criador pode **deletar** um bolão não resolvido (reembolso das apostas).
+- **Princípio geral**: tudo que um membro cria (pergunta, foto, desafio, bolão) ele também pode deletar, sempre com reversão completa de pontos/conquistas via RPC `security definer`.
+
+---
+
 ## Plano de Lançamento
 
 - **Fase 1**: funcionalidades básicas — perguntas, submissão de fotos, desafios, pontos, conquistas e leaderboards. Deixar o grupo se familiarizar com a mecânica.
@@ -150,9 +186,60 @@ Seção temporária do app para a Copa do Mundo 2026. Portado de um app Flask an
 ## Stack Técnica
 
 - **React 19** + **Vite** + **React Router v7** + TypeScript + Tailwind CSS v4
-- **Supabase** (auth + banco de dados)
+- **Supabase** (auth + banco de dados + storage para fotos)
 - **Framer Motion** (animações)
-- Deploy: a definir
+- **Deploy**: Vercel (auto-deploy do GitHub, configurado via `vercel.json`)
+
+### Estrutura do Projeto
+
+```
+src/
+  App.tsx          — rotas (React Router)
+  main.tsx         — entrypoint do Vite
+  globals.css      — Tailwind + variáveis de tema
+  pages/           — uma página por rota
+  components/      — componentes reutilizáveis (Card, Avatar, Header, BottomNav, etc.)
+  hooks/           — hooks customizados (useAuth, useNudges)
+  lib/
+    constants.ts   — MEMBERS, COUPLES, ADULTS
+    types.ts       — interfaces TypeScript (Db*, Wc*, etc.)
+    supabase/
+      client.ts    — singleton do Supabase client
+      queries.ts   — todas as queries e RPCs
+supabase/          — SQL de schema, seeds e migrações
+```
+
+### Rotas
+
+| Rota | Página |
+|------|--------|
+| `/` | Home (ranking, nudges, grupo) |
+| `/login` | Login com Supabase Auth |
+| `/primeiro-acesso` | Onboarding |
+| `/perguntas` | Lista de perguntas |
+| `/perguntas/nova` | Criar pergunta |
+| `/perguntas/:id` | Detalhe/responder pergunta |
+| `/fotos` | Submissões de foto |
+| `/fotos/nova` | Enviar foto |
+| `/fotos/desafios` | Lista de desafios de foto |
+| `/fotos/desafios/novo` | Criar desafio |
+| `/fotos/desafios/:id` | Detalhe do desafio |
+| `/fotos/:id` | Detalhe/votar foto |
+| `/apostas` | Lista de bolões |
+| `/apostas/nova` | Criar bolão |
+| `/apostas/:id` | Detalhe do bolão |
+| `/copa` | Dashboard Copa 2026 |
+| `/copa/jogos` | Todos os jogos |
+| `/copa/jogo/:id` | Detalhe do jogo + palpite |
+| `/copa/ranking` | Ranking do bolão |
+| `/copa/regras` | Regras de pontuação |
+| `/perfil/:nickname` | Perfil do membro |
+| `/regras` | Regras gerais |
+
+### Variáveis de Ambiente
+
+- `VITE_SUPABASE_URL` — URL do projeto Supabase
+- `VITE_SUPABASE_ANON_KEY` — chave anon do Supabase
 
 ## Documentos de Apoio
 
