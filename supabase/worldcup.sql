@@ -11,7 +11,7 @@ alter table nenecoins_ledger add constraint nenecoins_ledger_tx_type_check
     'bet_placed', 'bet_won', 'bet_refund',
     'gift_sent', 'gift_received',
     'fire_conversion_out', 'fire_conversion_in',
-    'wc_bet_placed', 'wc_bet_won', 'wc_bet_refund'
+    'wc_bet_placed', 'wc_bet_won', 'wc_bet_refund', 'wc_bet_clawback'
   ));
 
 -- ─────────────────────────────────────────────
@@ -381,7 +381,7 @@ begin
   loop
     if v_pred.coins_won > 0 then
       insert into nenecoins_ledger (user_id, amount, coin_type, tx_type, ref_id, note)
-      values (v_pred.user_id, -v_pred.coins_won, 'nenecoin', 'wc_bet_refund', p_match_id,
+      values (v_pred.user_id, -v_pred.coins_won, 'nenecoin', 'wc_bet_clawback', p_match_id,
         'Reverte Copa: ' || v_match.home_team || ' x ' || v_match.away_team);
     end if;
 

@@ -73,7 +73,7 @@ export function BottomNav() {
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 bg-surface border-t border-border">
+    <nav className="fixed bottom-0 left-0 right-0 bg-surface border-t border-border pb-[env(safe-area-inset-bottom)]">
       <div className="max-w-lg mx-auto flex">
         {links.map(({ href, label, icon: Icon, active }) => (
           <Link

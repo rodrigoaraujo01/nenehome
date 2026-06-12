@@ -45,6 +45,7 @@ const TX_LABELS: Record<string, string> = {
   wc_bet_placed:        "Aposta Copa 2026",
   wc_bet_won:           "Aposta Copa 2026 ganha",
   wc_bet_refund:        "Reembolso Copa 2026",
+  wc_bet_clawback:      "Reversão Copa 2026",
 };
 
 function NenecoinHistory({ entries }: { entries: NenecoinLedgerEntry[] }) {
@@ -60,7 +61,7 @@ function NenecoinHistory({ entries }: { entries: NenecoinLedgerEntry[] }) {
   const seenWcBets = new Set<string>();
   const filtered = entries.filter((e) => {
     if (e.ref_id && refundedBetIds.has(e.ref_id) && (e.tx_type === "bet_placed" || e.tx_type === "bet_refund")) return false;
-    if (e.tx_type === "wc_bet_refund") return false;
+    if (e.tx_type === "wc_bet_refund" || e.tx_type === "wc_bet_clawback") return false;
     if (e.tx_type === "wc_bet_placed" && e.ref_id) {
       if (seenWcBets.has(e.ref_id)) return false;
       seenWcBets.add(e.ref_id);
