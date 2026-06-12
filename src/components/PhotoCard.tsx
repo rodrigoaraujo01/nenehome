@@ -6,6 +6,7 @@ import type { DbPhotoSubmission } from "@/lib/types";
 interface PhotoCardProps {
   submission: DbPhotoSubmission;
   currentUserId: string;
+  backTo?: { to: string; label: string };
 }
 
 const STATUS_LABEL = {
@@ -20,7 +21,7 @@ const STATUS_STYLE = {
   rejected: "bg-red-500/15 text-red-400",
 } as const;
 
-export function PhotoCard({ submission, currentUserId }: PhotoCardProps) {
+export function PhotoCard({ submission, currentUserId, backTo }: PhotoCardProps) {
   const isOwn = submission.submitter_id === currentUserId;
   const voted = submission.my_vote !== null && submission.my_vote !== undefined;
   const canVote = submission.status === "pending" && !isOwn && !voted;
@@ -30,7 +31,7 @@ export function PhotoCard({ submission, currentUserId }: PhotoCardProps) {
   const progress = Math.min((approveCount / threshold) * 100, 100);
 
   return (
-    <Link to={`/fotos/${submission.id}`} className="block">
+    <Link to={`/fotos/${submission.id}`} state={backTo ? { backTo } : undefined} className="block">
       <div className="bg-surface border border-border rounded-2xl overflow-hidden hover:border-accent/40 transition-colors">
         {/* photo */}
         <div className="relative aspect-square w-full bg-surface-light">

@@ -178,6 +178,7 @@ export default function DesafioDetailPage() {
                     </div>
                     <Link
                       to={`/fotos/${c.submission_id}`}
+                      state={{ backTo: { to: `/fotos/desafios/${challenge.id}`, label: challenge.title } }}
                       className="text-xs text-accent hover:opacity-80 transition-opacity"
                     >
                       Ver foto
@@ -200,6 +201,7 @@ export default function DesafioDetailPage() {
                     key={s.id}
                     submission={s}
                     currentUserId={profile.id}
+                    backTo={{ to: `/fotos/desafios/${challenge.id}`, label: challenge.title }}
                   />
                 ))}
               </div>
@@ -217,6 +219,7 @@ export default function DesafioDetailPage() {
                     key={s.id}
                     submission={s}
                     currentUserId={profile.id}
+                    backTo={{ to: `/fotos/desafios/${challenge.id}`, label: challenge.title }}
                   />
                 ))}
               </div>
@@ -234,6 +237,7 @@ export default function DesafioDetailPage() {
                     key={s.id}
                     submission={s}
                     currentUserId={profile.id}
+                    backTo={{ to: `/fotos/desafios/${challenge.id}`, label: challenge.title }}
                   />
                 ))}
               </div>

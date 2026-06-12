@@ -438,7 +438,8 @@ export async function getPhotoSubmissions(
     .select(`
       *,
       submitter:profiles!submitter_id(id, nickname, avatar_url),
-      votes:photo_votes(id, voter_id, approved)
+      votes:photo_votes(id, voter_id, approved),
+      challenge:photo_challenges!challenge_id(id, title)
     `)
     .order("created_at", { ascending: false });
 
@@ -559,6 +560,19 @@ export async function voteOnSubmission(params: {
   }
   const result = data as VoteResult;
   return { ...result, achievements: result.achievements ?? [] };
+}
+
+export async function unvoteOnSubmission(
+  submissionId: string,
+): Promise<VoteResult | null> {
+  const { data, error } = await getSupabase().rpc("unvote_on_submission", {
+    p_submission_id: submissionId,
+  });
+  if (error) {
+    console.error("Error unvoting:", error);
+    return null;
+  }
+  return data as VoteResult;
 }
 
 // ─── Delete a photo submission (submitter-only, full wipe) ───────────────────

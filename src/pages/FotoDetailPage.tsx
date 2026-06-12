@@ -1,13 +1,13 @@
 
 import { useEffect, useState } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/ui/Button";
 import { AchievementToast } from "@/components/AchievementToast";
 import { useAuth } from "@/hooks/useAuth";
-import { getPhotoSubmission, voteOnSubmission, deletePhotoSubmission } from "@/lib/supabase/queries";
+import { getPhotoSubmission, voteOnSubmission, unvoteOnSubmission, deletePhotoSubmission } from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
 import type { DbPhotoSubmission, VoteResult, UnlockedAchievement } from "@/lib/types";
 
@@ -15,12 +15,15 @@ export default function FotoDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { profile, loading } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const backTo = (location.state as { backTo?: { to: string; label: string } } | null)?.backTo
+    ?? { to: "/fotos", label: "Fotos" };
 
   const [submission, setSubmission] = useState<DbPhotoSubmission | null>(null);
   const [fetching, setFetching] = useState(true);
   const [voting, setVoting] = useState(false);
   const [voteResult, setVoteResult] = useState<VoteResult | null>(null);
-  const [myVoteValue, setMyVoteValue] = useState<boolean | null>(null);
+  const [myVote, setMyVote] = useState<boolean | null>(null);
   const [newAchievements, setNewAchievements] = useState<UnlockedAchievement[]>([]);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -33,6 +36,7 @@ export default function FotoDetailPage() {
     if (!profile || !id) return;
     getPhotoSubmission(id, profile.id).then((s) => {
       setSubmission(s);
+      setMyVote(s?.my_vote ?? null);
       setFetching(false);
     });
   }, [profile, id]);
@@ -57,12 +61,10 @@ export default function FotoDetailPage() {
   }
 
   const isOwn = submission.submitter_id === profile.id;
-  const voted =
-    voteResult !== null ||
-    (submission.my_vote !== null && submission.my_vote !== undefined);
-  const canVote = submission.status === "pending" && !isOwn && !voted;
-
   const currentStatus = voteResult?.status ?? submission.status;
+  const voted = myVote !== null;
+  const canVote = currentStatus === "pending" && !isOwn && !voted;
+  const canUnvote = currentStatus === "pending" && !isOwn && voted;
   const approveCount = voteResult?.approve_count ?? submission.approve_count ?? 0;
   const rejectCount = voteResult?.reject_count ?? submission.reject_count ?? 0;
   const threshold = submission.votes_to_approve;
@@ -78,8 +80,19 @@ export default function FotoDetailPage() {
     setVoting(false);
     if (result) {
       setVoteResult(result);
-      setMyVoteValue(approved);
+      setMyVote(approved);
       if (result.achievements?.length) setNewAchievements(result.achievements);
+    }
+  }
+
+  async function handleUnvote() {
+    if (!submission) return;
+    setVoting(true);
+    const result = await unvoteOnSubmission(submission.id);
+    setVoting(false);
+    if (result) {
+      setVoteResult(result);
+      setMyVote(null);
     }
   }
 
@@ -117,9 +130,9 @@ export default function FotoDetailPage() {
       <Header />
       <main className="flex-1 px-6 py-8">
         <div className="max-w-lg mx-auto space-y-5">
-          <Link to="/fotos" className="flex items-center gap-3 text-muted hover:text-foreground transition-colors">
+          <Link to={backTo.to} className="flex items-center gap-3 text-muted hover:text-foreground transition-colors">
             <span>‹</span>
-            <span className="text-sm font-bold text-foreground">Fotos</span>
+            <span className="text-sm font-bold text-foreground">{backTo.label}</span>
           </Link>
 
           {/* photo */}
@@ -199,16 +212,26 @@ export default function FotoDetailPage() {
                 </div>
               )}
 
-              {voted && !canVote && (
+              {isOwn && (
                 <p className="text-sm text-muted text-center pt-1">
-                  {isOwn
-                    ? "Você não pode votar na própria foto"
-                    : `Você ${
-                        (myVoteValue ?? submission.my_vote)
-                          ? "aprovou"
-                          : "rejeitou"
-                      } esta foto`}
+                  Você não pode votar na própria foto
                 </p>
+              )}
+
+              {canUnvote && (
+                <div className="text-center pt-1 space-y-2">
+                  <p className="text-sm text-muted">
+                    Você {myVote ? "aprovou" : "rejeitou"} esta foto
+                  </p>
+                  <button
+                    type="button"
+                    onClick={handleUnvote}
+                    disabled={voting}
+                    className="text-xs font-bold text-accent hover:opacity-80 transition-opacity disabled:opacity-50"
+                  >
+                    {voting ? "..." : "Trocar voto"}
+                  </button>
+                </div>
               )}
             </div>
           )}

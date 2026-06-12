@@ -15,6 +15,7 @@ import PerguntasNovaPage from "@/pages/PerguntasNovaPage";
 import PerguntasRespondidasPage from "@/pages/PerguntasRespondidasPage";
 import PerguntaDetailPage from "@/pages/PerguntaDetailPage";
 import FotosPage from "@/pages/FotosPage";
+import VotarFotosPage from "@/pages/VotarFotosPage";
 import FotosNovaPage from "@/pages/FotosNovaPage";
 import FotoDetailPage from "@/pages/FotoDetailPage";
 import DesafiosPage from "@/pages/DesafiosPage";
@@ -45,6 +46,7 @@ export function App() {
         <Route path="/perguntas/respondidas" element={<PerguntasRespondidasPage />} />
         <Route path="/perguntas/:id" element={<PerguntaDetailPage />} />
         <Route path="/fotos" element={<FotosPage />} />
+        <Route path="/fotos/votar" element={<VotarFotosPage />} />
         <Route path="/fotos/nova" element={<FotosNovaPage />} />
         <Route path="/fotos/desafios" element={<DesafiosPage />} />
         <Route path="/fotos/desafios/novo" element={<DesafiosNovoPage />} />

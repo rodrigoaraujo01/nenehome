@@ -42,6 +42,11 @@ export default function FotosPage() {
 
   const pending = submissions.filter((s) => s.status === "pending");
   const approved = submissions.filter((s) => s.status === "approved");
+  const toVote = pending.filter(
+    (s) =>
+      s.submitter_id !== profile.id &&
+      (s.my_vote === null || s.my_vote === undefined)
+  );
   const now = new Date();
   const activeChallenges = challenges.filter((c) => new Date(c.deadline) >= now);
   const expiredChallenges = challenges.filter((c) => new Date(c.deadline) < now);
@@ -67,6 +72,21 @@ export default function FotosPage() {
               + Desafio
             </Link>
           </div>
+
+          {!fetching && toVote.length > 0 && (
+            <Link
+              to="/fotos/votar"
+              className="flex items-center justify-between bg-accent hover:bg-accent-hover text-white font-bold px-5 py-4 rounded-2xl mb-6 transition-colors"
+            >
+              <span className="flex items-center gap-2">
+                <span className="text-xl">🔥</span>
+                Votar nas fotos
+              </span>
+              <span className="bg-white/20 text-sm rounded-full px-3 py-1">
+                {toVote.length}
+              </span>
+            </Link>
+          )}
 
           {fetching ? (
             <div className="space-y-3">
