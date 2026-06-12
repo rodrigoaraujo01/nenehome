@@ -6,6 +6,7 @@ import { Header } from "@/components/Header";
 import { Avatar } from "@/components/Avatar";
 import { Card } from "@/components/ui/Card";
 import { CurrencyBadge } from "@/components/CurrencyBadge";
+import { PushBanner } from "@/components/PushBanner";
 import { useAuth } from "@/hooks/useAuth";
 import { useNudges } from "@/hooks/useNudges";
 import { getLeaderboard, getNenecoinBalance, getGiftMessages } from "@/lib/supabase/queries";
@@ -108,6 +109,9 @@ export default function Home() {
               />
             )}
           </div>
+
+          {/* push opt-in */}
+          <PushBanner userId={profile.id} />
 
           {/* gift messages */}
           {visibleGifts.length > 0 && (
