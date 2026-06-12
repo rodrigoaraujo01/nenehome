@@ -1,6 +1,7 @@
 
 import { Link } from "react-router-dom";
 import { Avatar } from "./Avatar";
+import { ADULTS } from "@/lib/constants";
 import type { DbPhotoChallenge } from "@/lib/types";
 
 interface ChallengeCardProps {
@@ -101,7 +102,7 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
               </div>
             )}
             <span className="text-xs text-muted">
-              {completionCount}/8
+              {completionCount}/{ADULTS.length}
             </span>
           </div>
         </div>

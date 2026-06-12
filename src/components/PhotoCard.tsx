@@ -99,11 +99,17 @@ export function PhotoCard({ submission, currentUserId }: PhotoCardProps) {
             </div>
           )}
 
-          {submission.status === "approved" && (
-            <p className="text-xs text-green font-semibold">
-              +{submission.points_reward} pts para {submission.submitter?.nickname}
-            </p>
-          )}
+          {submission.status === "approved" &&
+            (submission.awarded_points === false ? (
+              <p className="text-xs text-muted font-semibold">
+                Aprovada · sem pontos (já pontuou neste desafio)
+              </p>
+            ) : (
+              <p className="text-xs text-green font-semibold">
+                +{submission.points_reward} pts para{" "}
+                {submission.submitter?.nickname}
+              </p>
+            ))}
         </div>
       </div>
     </Link>

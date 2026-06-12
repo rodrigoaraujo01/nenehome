@@ -186,6 +186,10 @@ export interface DbPhotoSubmission {
   reject_count?: number;
   my_vote?: boolean | null;
   challenge?: DbPhotoChallenge | null;
+  // true when this submission actually granted photo_approved points.
+  // For challenge photos only the first approved one per user earns; the rest
+  // are approved but awarded nothing.
+  awarded_points?: boolean;
 }
 
 export interface VoteResult {

@@ -7,7 +7,7 @@ import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/ui/Button";
 import { AchievementToast } from "@/components/AchievementToast";
 import { useAuth } from "@/hooks/useAuth";
-import { getPhotoSubmission, voteOnSubmission } from "@/lib/supabase/queries";
+import { getPhotoSubmission, voteOnSubmission, deletePhotoSubmission } from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
 import type { DbPhotoSubmission, VoteResult, UnlockedAchievement } from "@/lib/types";
 
@@ -22,6 +22,8 @@ export default function FotoDetailPage() {
   const [voteResult, setVoteResult] = useState<VoteResult | null>(null);
   const [myVoteValue, setMyVoteValue] = useState<boolean | null>(null);
   const [newAchievements, setNewAchievements] = useState<UnlockedAchievement[]>([]);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !profile) navigate("/login");
@@ -78,6 +80,24 @@ export default function FotoDetailPage() {
       setVoteResult(result);
       setMyVoteValue(approved);
       if (result.achievements?.length) setNewAchievements(result.achievements);
+    }
+  }
+
+  async function handleDelete() {
+    if (!submission) return;
+    const msg =
+      submission.status === "approved"
+        ? "Excluir esta foto? Os pontos e conquistas que ela gerou serão desfeitos, como se nunca tivesse existido."
+        : "Excluir esta foto?";
+    if (!confirm(msg)) return;
+    setDeleting(true);
+    setDeleteError(null);
+    const result = await deletePhotoSubmission(submission.id);
+    if (result.error) {
+      setDeleteError(result.error);
+      setDeleting(false);
+    } else {
+      navigate("/fotos");
     }
   }
 
@@ -199,7 +219,9 @@ export default function FotoDetailPage() {
                 ✓ Aprovada pelo grupo!
               </p>
               <p className="text-sm text-muted mt-1">
-                {submission.submitter?.nickname} ganhou +{submission.points_reward} pts
+                {submission.awarded_points === false
+                  ? `${submission.submitter?.nickname} já pontuou neste desafio com outra foto, então esta não deu pontos extras.`
+                  : `${submission.submitter?.nickname} ganhou +${submission.points_reward} pts`}
               </p>
             </div>
           )}
@@ -247,6 +269,28 @@ export default function FotoDetailPage() {
                     })}
                   </div>
                 </div>
+              )}
+            </div>
+          )}
+
+          {isOwn && (
+            <div className="border-t border-border pt-5 space-y-3">
+              {submission.status === "approved" && (
+                <p className="text-sm text-muted">
+                  Excluir desfaz os pontos e conquistas que esta foto gerou,
+                  como se nunca tivesse existido.
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="text-xs text-red-400 hover:opacity-80 transition-opacity disabled:opacity-50"
+              >
+                {deleting ? "Excluindo..." : "Excluir foto"}
+              </button>
+              {deleteError && (
+                <p className="text-xs text-red-400">{deleteError}</p>
               )}
             </div>
           )}

@@ -198,6 +198,18 @@ export async function createQuestion(params: {
   return { id: result.id, achievements: result.achievements ?? [] };
 }
 
+// ─── Delete a question (creator-only, full wipe) ─────────────────────────────
+
+export async function deleteQuestion(
+  questionId: string,
+): Promise<{ error?: string }> {
+  const { data, error } = await getSupabase().rpc("delete_question", {
+    p_question_id: questionId,
+  });
+  if (error) return { error: error.message };
+  return data as { error?: string };
+}
+
 // ─── Get all answers for a question (only if current user has answered) ──────
 
 export async function getQuestionAnswers(questionId: string): Promise<QuestionAnswer[]> {
@@ -346,6 +358,17 @@ export async function getChallenge(
     .eq("challenge_id", id)
     .order("created_at", { ascending: false });
 
+  // which of these submissions actually granted photo_approved points
+  const subIds = (subs ?? []).map((s) => s.id);
+  const { data: awardRows } = subIds.length
+    ? await sb
+        .from("points_log")
+        .select("ref_id")
+        .eq("reason", "photo_approved")
+        .in("ref_id", subIds)
+    : { data: [] as { ref_id: string }[] };
+  const awardedIds = new Set((awardRows ?? []).map((r) => r.ref_id));
+
   const submissions = (subs ?? []).map((s) => {
     const votes = (s.votes ?? []) as { voter_id: string; approved: boolean }[];
     const myVoteObj = votes.find((v) => v.voter_id === userId);
@@ -354,6 +377,7 @@ export async function getChallenge(
       approve_count: votes.filter((v) => v.approved).length,
       reject_count: votes.filter((v) => !v.approved).length,
       my_vote: myVoteObj ? myVoteObj.approved : null,
+      awarded_points: awardedIds.has(s.id),
     };
   }) as DbPhotoSubmission[];
 
@@ -420,6 +444,16 @@ export async function getPhotoSubmissions(
 
   if (error || !data) return [];
 
+  const subIds = data.map((s) => s.id);
+  const { data: awardRows } = subIds.length
+    ? await sb
+        .from("points_log")
+        .select("ref_id")
+        .eq("reason", "photo_approved")
+        .in("ref_id", subIds)
+    : { data: [] as { ref_id: string }[] };
+  const awardedIds = new Set((awardRows ?? []).map((r) => r.ref_id));
+
   return data.map((s) => {
     const votes = (s.votes ?? []) as { voter_id: string; approved: boolean }[];
     const myVoteObj = votes.find((v) => v.voter_id === userId);
@@ -428,6 +462,7 @@ export async function getPhotoSubmissions(
       approve_count: votes.filter((v) => v.approved).length,
       reject_count: votes.filter((v) => !v.approved).length,
       my_vote: myVoteObj ? myVoteObj.approved : null,
+      awarded_points: awardedIds.has(s.id),
     };
   }) as DbPhotoSubmission[];
 }
@@ -452,11 +487,18 @@ export async function getPhotoSubmission(
   const votes = (data.votes ?? []) as { voter_id: string; approved: boolean }[];
   const myVoteObj = votes.find((v) => v.voter_id === userId);
 
+  const { data: awardRows } = await getSupabase()
+    .from("points_log")
+    .select("ref_id")
+    .eq("reason", "photo_approved")
+    .eq("ref_id", id);
+
   return {
     ...data,
     approve_count: votes.filter((v) => v.approved).length,
     reject_count: votes.filter((v) => !v.approved).length,
     my_vote: myVoteObj ? myVoteObj.approved : null,
+    awarded_points: (awardRows ?? []).length > 0,
   } as DbPhotoSubmission;
 }
 
@@ -517,6 +559,18 @@ export async function voteOnSubmission(params: {
   }
   const result = data as VoteResult;
   return { ...result, achievements: result.achievements ?? [] };
+}
+
+// ─── Delete a photo submission (submitter-only, full wipe) ───────────────────
+
+export async function deletePhotoSubmission(
+  submissionId: string,
+): Promise<{ error?: string }> {
+  const { data, error } = await getSupabase().rpc("delete_photo_submission", {
+    p_submission_id: submissionId,
+  });
+  if (error) return { error: error.message };
+  return data as { error?: string };
 }
 
 // ─── Achievements ─────────────────────────────────────────────────────────────
