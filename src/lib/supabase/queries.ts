@@ -1014,3 +1014,47 @@ export async function deletePushSubscription(endpoint: string): Promise<void> {
     .delete()
     .eq("endpoint", endpoint);
 }
+
+// ─── Notification preferences ───────────────────────────────────────────────────
+
+export interface NotificationPrefs {
+  new_question: boolean;
+  new_challenge: boolean;
+  new_photo: boolean;
+  question_completed: boolean;
+  photo_rejected: boolean;
+}
+
+export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
+  new_question: true,
+  new_challenge: true,
+  new_photo: true,
+  question_completed: true,
+  photo_rejected: true,
+};
+
+export async function getNotificationPrefs(
+  userId: string,
+): Promise<NotificationPrefs> {
+  const { data } = await getSupabase()
+    .from("notification_prefs")
+    .select(
+      "new_question, new_challenge, new_photo, question_completed, photo_rejected",
+    )
+    .eq("user_id", userId)
+    .maybeSingle();
+  return { ...DEFAULT_NOTIFICATION_PREFS, ...(data ?? {}) };
+}
+
+export async function saveNotificationPrefs(
+  userId: string,
+  prefs: NotificationPrefs,
+): Promise<void> {
+  const { error } = await getSupabase()
+    .from("notification_prefs")
+    .upsert(
+      { user_id: userId, ...prefs, updated_at: new Date().toISOString() },
+      { onConflict: "user_id" },
+    );
+  if (error) throw error;
+}

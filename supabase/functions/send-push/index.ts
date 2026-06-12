@@ -35,31 +35,100 @@ interface Notif {
   tag: string;
 }
 
+// Columns of notification_prefs. The Edge Function only suppresses a message
+// when a member's column is explicitly `false`; missing rows default to "send".
+type PrefKey =
+  | "new_question"
+  | "new_challenge"
+  | "new_photo"
+  | "question_completed"
+  | "photo_rejected";
+
+interface Built {
+  notif: Notif;
+  prefKey: PrefKey;
+  // Broadcast to everyone except this user (new-content events)…
+  excludeUserId: string | null;
+  // …or deliver only to this single user (targeted events).
+  targetUserId: string | null;
+}
+
 // deno-lint-ignore no-explicit-any
-function buildNotification(table: string, record: any, who: string): Notif | null {
+function buildFromTable(table: string, record: any, who: string): Built | null {
   switch (table) {
     case "questions":
       return {
-        title: "Nova pergunta! ❓",
-        body: `${who}: ${truncate(record.content, 90)}`,
-        url: `/perguntas/${record.id}`,
-        tag: `question-${record.id}`,
+        notif: {
+          title: "Nova pergunta! ❓",
+          body: `${who}: ${truncate(record.content, 90)}`,
+          url: `/perguntas/${record.id}`,
+          tag: `question-${record.id}`,
+        },
+        prefKey: "new_question",
+        excludeUserId: (record.creator_id as string | undefined) ?? null,
+        targetUserId: null,
       };
     case "photo_challenges":
       return {
-        title: "Novo desafio de foto! 🏆",
-        body: `${who}: ${truncate(record.title, 90)}`,
-        url: `/fotos/desafios/${record.id}`,
-        tag: `challenge-${record.id}`,
+        notif: {
+          title: "Novo desafio de foto! 🏆",
+          body: `${who}: ${truncate(record.title, 90)}`,
+          url: `/fotos/desafios/${record.id}`,
+          tag: `challenge-${record.id}`,
+        },
+        prefKey: "new_challenge",
+        excludeUserId: (record.creator_id as string | undefined) ?? null,
+        targetUserId: null,
       };
     case "photo_submissions":
       return {
-        title: "Nova foto para votar! 📸",
-        body: record.caption
-          ? `${who}: ${truncate(record.caption, 90)}`
-          : `${who} enviou uma foto`,
-        url: `/fotos/${record.id}`,
-        tag: `photo-${record.id}`,
+        notif: {
+          title: "Nova foto para votar! 📸",
+          body: record.caption
+            ? `${who}: ${truncate(record.caption, 90)}`
+            : `${who} enviou uma foto`,
+          url: `/fotos/${record.id}`,
+          tag: `photo-${record.id}`,
+        },
+        prefKey: "new_photo",
+        excludeUserId: (record.submitter_id as string | undefined) ?? null,
+        targetUserId: null,
+      };
+    default:
+      return null;
+  }
+}
+
+// deno-lint-ignore no-explicit-any
+function buildFromEvent(event: string, payload: any): Built | null {
+  switch (event) {
+    case "question_completed":
+      return {
+        notif: {
+          title: "Todos responderam! ✅",
+          body: payload.content
+            ? `Sua pergunta "${truncate(payload.content, 80)}" foi respondida por todos. Veja o resultado!`
+            : "Sua pergunta foi respondida por todos. Veja o resultado!",
+          url: `/perguntas/${payload.question_id}`,
+          tag: `question-done-${payload.question_id}`,
+        },
+        prefKey: "question_completed",
+        excludeUserId: null,
+        targetUserId: (payload.target_user_id as string | undefined) ?? null,
+      };
+    case "photo_rejected":
+      return {
+        notif: {
+          title: "Foto não passou 😬",
+          body: payload.caption
+            ? `Sua foto "${truncate(payload.caption, 80)}" foi rejeitada na votação.`
+            : "Uma das suas fotos foi rejeitada na votação.",
+          url: `/fotos/${payload.submission_id}`,
+          tag: `photo-rejected-${payload.submission_id}`,
+        },
+        prefKey: "photo_rejected",
+        excludeUserId: null,
+        targetUserId: (payload.target_user_id as string | undefined) ?? null,
       };
     default:
       return null;
@@ -67,42 +136,64 @@ function buildNotification(table: string, record: any, who: string): Notif | nul
 }
 
 Deno.serve(async (req) => {
-  let payload: { table?: string; record?: Record<string, unknown> };
+  // deno-lint-ignore no-explicit-any
+  let payload: any;
   try {
     payload = await req.json();
   } catch {
     return new Response("invalid json", { status: 400 });
   }
 
-  const table = payload.table ?? "";
-  const record = payload.record;
-  if (!record) return new Response("no record", { status: 200 });
+  let built: Built | null = null;
 
-  const creatorId =
-    (record.creator_id as string | undefined) ??
-    (record.submitter_id as string | undefined) ??
-    null;
+  if (payload.event) {
+    built = buildFromEvent(payload.event as string, payload);
+  } else if (payload.record) {
+    const record = payload.record as Record<string, unknown>;
+    const creatorId =
+      (record.creator_id as string | undefined) ??
+      (record.submitter_id as string | undefined) ??
+      null;
 
-  let who = "Alguém";
-  if (creatorId) {
-    const { data } = await supabase
-      .from("profiles")
-      .select("nickname")
-      .eq("id", creatorId)
-      .single();
-    if (data?.nickname) who = data.nickname;
+    let who = "Alguém";
+    if (creatorId) {
+      const { data } = await supabase
+        .from("profiles")
+        .select("nickname")
+        .eq("id", creatorId)
+        .single();
+      if (data?.nickname) who = data.nickname;
+    }
+    built = buildFromTable((payload.table as string) ?? "", record, who);
   }
 
-  const notif = buildNotification(table, record, who);
-  if (!notif) return new Response("ignored table", { status: 200 });
+  if (!built) return new Response("ignored", { status: 200 });
+
+  const { notif, prefKey, excludeUserId, targetUserId } = built;
 
   let query = supabase
     .from("push_subscriptions")
     .select("endpoint, p256dh, auth, user_id");
-  if (creatorId) query = query.neq("user_id", creatorId);
+  if (targetUserId) query = query.eq("user_id", targetUserId);
+  else if (excludeUserId) query = query.neq("user_id", excludeUserId);
 
-  const { data: subs, error } = await query;
+  const { data: allSubs, error } = await query;
   if (error) return new Response(error.message, { status: 500 });
+
+  // Drop subscriptions whose owner opted out of this event type.
+  const userIds = [...new Set((allSubs ?? []).map((s) => s.user_id))];
+  const optedOut = new Set<string>();
+  if (userIds.length) {
+    const { data: prefs } = await supabase
+      .from("notification_prefs")
+      .select(`user_id, ${prefKey}`)
+      .in("user_id", userIds);
+    for (const p of prefs ?? []) {
+      // deno-lint-ignore no-explicit-any
+      if ((p as any)[prefKey] === false) optedOut.add(p.user_id as string);
+    }
+  }
+  const subs = (allSubs ?? []).filter((s) => !optedOut.has(s.user_id));
 
   const body = JSON.stringify(notif);
   const results = await Promise.allSettled(

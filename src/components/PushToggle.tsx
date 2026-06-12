@@ -1,5 +1,91 @@
+import { useEffect, useState } from "react";
 import { Card } from "@/components/ui/Card";
 import { usePushSubscription } from "@/hooks/usePushSubscription";
+import {
+  DEFAULT_NOTIFICATION_PREFS,
+  getNotificationPrefs,
+  saveNotificationPrefs,
+  type NotificationPrefs,
+} from "@/lib/supabase/queries";
+
+const PREF_ITEMS: { key: keyof NotificationPrefs; label: string }[] = [
+  { key: "new_question", label: "Novas perguntas" },
+  { key: "new_challenge", label: "Novos desafios de foto" },
+  { key: "new_photo", label: "Novas fotos para votar" },
+  { key: "question_completed", label: "Todos responderam minha pergunta" },
+  { key: "photo_rejected", label: "Minha foto foi rejeitada" },
+];
+
+function NotificationPrefsList({ userId }: { userId: string }) {
+  const [prefs, setPrefs] = useState<NotificationPrefs>(
+    DEFAULT_NOTIFICATION_PREFS,
+  );
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    getNotificationPrefs(userId)
+      .then((p) => {
+        if (active) setPrefs(p);
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+    return () => {
+      active = false;
+    };
+  }, [userId]);
+
+  async function toggle(key: keyof NotificationPrefs) {
+    const next = { ...prefs, [key]: !prefs[key] };
+    setPrefs(next);
+    setSaving(true);
+    try {
+      await saveNotificationPrefs(userId, next);
+    } catch {
+      setPrefs(prefs); // revert on failure
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (loading) return null;
+
+  return (
+    <div className="mt-4 border-t border-border pt-3">
+      <p className="text-xs font-bold text-muted uppercase tracking-wider mb-2">
+        Avisar quando
+      </p>
+      <ul className="flex flex-col gap-2">
+        {PREF_ITEMS.map(({ key, label }) => (
+          <li
+            key={key}
+            className="flex items-center justify-between gap-3 text-sm"
+          >
+            <span className="min-w-0 text-foreground">{label}</span>
+            <button
+              role="switch"
+              aria-checked={prefs[key]}
+              aria-label={label}
+              disabled={saving}
+              onClick={() => toggle(key)}
+              className={`relative h-6 w-11 shrink-0 rounded-full transition-colors disabled:opacity-50 ${
+                prefs[key] ? "bg-accent" : "bg-surface-light"
+              }`}
+            >
+              <span
+                className={`absolute top-0.5 h-5 w-5 rounded-full bg-background transition-transform ${
+                  prefs[key] ? "translate-x-[1.375rem]" : "translate-x-0.5"
+                }`}
+              />
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 export function PushToggle({ userId }: { userId: string }) {
   const { supported, blocked, enabled, loading, busy, error, enable, disable } =
@@ -51,6 +137,7 @@ export function PushToggle({ userId }: { userId: string }) {
       {error && !blocked && (
         <p className="text-xs text-red-400 mt-3">{error}</p>
       )}
+      {enabled && <NotificationPrefsList userId={userId} />}
     </Card>
   );
 }
