@@ -7,7 +7,7 @@ import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/ui/Button";
 import { AchievementToast } from "@/components/AchievementToast";
 import { useAuth } from "@/hooks/useAuth";
-import { getQuestion, submitAnswer, getQuestionAnswers } from "@/lib/supabase/queries";
+import { getQuestion, submitAnswer, getQuestionAnswers, deleteQuestion } from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
 import type { DbQuestion, AnswerResult, UnlockedAchievement, QuestionAnswer } from "@/lib/types";
 
@@ -26,6 +26,8 @@ export default function PerguntaPage() {
   const [result, setResult] = useState<AnswerResult | null>(null);
   const [allAnswers, setAllAnswers] = useState<QuestionAnswer[]>([]);
   const [newAchievements, setNewAchievements] = useState<UnlockedAchievement[]>([]);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !profile) navigate("/login");
@@ -91,6 +93,24 @@ export default function PerguntaPage() {
         if (updated) setQuestion(updated);
         setAllAnswers(answers);
       }
+    }
+  }
+
+  async function handleDelete() {
+    if (!question) return;
+    const hasAnswers = (question.answer_count ?? 0) > 0;
+    const msg = hasAnswers
+      ? "Excluir esta pergunta? As respostas serão apagadas e todos os pontos e conquistas relacionados serão desfeitos, como se a pergunta nunca tivesse existido."
+      : "Excluir esta pergunta?";
+    if (!confirm(msg)) return;
+    setDeleting(true);
+    setDeleteError(null);
+    const result = await deleteQuestion(question.id);
+    if (result.error) {
+      setDeleteError(result.error);
+      setDeleting(false);
+    } else {
+      navigate("/perguntas");
     }
   }
 
@@ -346,6 +366,29 @@ export default function PerguntaPage() {
             >
               ‹ Voltar para perguntas
             </Link>
+          )}
+
+          {isCreator && (
+            <div className="border-t border-border pt-5 space-y-3">
+              {(question.answer_count ?? 0) > 0 && (
+                <p className="text-sm text-muted">
+                  Excluir apaga as respostas e desfaz todos os pontos e
+                  conquistas relacionados, como se a pergunta nunca tivesse
+                  existido.
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="text-xs text-red-400 hover:opacity-80 transition-opacity disabled:opacity-50"
+              >
+                {deleting ? "Excluindo..." : "Excluir pergunta"}
+              </button>
+              {deleteError && (
+                <p className="text-xs text-red-400">{deleteError}</p>
+              )}
+            </div>
           )}
         </div>
       </main>
