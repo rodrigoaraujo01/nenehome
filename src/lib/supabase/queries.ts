@@ -182,7 +182,12 @@ export async function createQuestion(params: {
   content: string;
   subject_id?: string;
   options?: { text: string; is_correct: boolean }[];
-}): Promise<{ id: string; achievements: UnlockedAchievement[] } | null> {
+}): Promise<{
+  id: string;
+  points_creator: number;
+  is_premium: boolean;
+  achievements: UnlockedAchievement[];
+} | null> {
   const { data, error } = await getSupabase().rpc("create_question", {
     p_type: params.type,
     p_content: params.content,
@@ -194,8 +199,58 @@ export async function createQuestion(params: {
     console.error("Error creating question:", error);
     return null;
   }
-  const result = data as { id: string; achievements: UnlockedAchievement[] };
-  return { id: result.id, achievements: result.achievements ?? [] };
+  const result = data as {
+    id: string;
+    points_creator: number;
+    is_premium: boolean;
+    achievements: UnlockedAchievement[];
+  };
+  return {
+    id: result.id,
+    points_creator: result.points_creator,
+    is_premium: result.is_premium,
+    achievements: result.achievements ?? [],
+  };
+}
+
+// ─── Whether the user still has their premium (+20) question today ───────────
+// "Hoje" no fuso America/Sao_Paulo, igual ao RPC create_question.
+export async function hasPremiumQuestionToday(userId: string): Promise<boolean> {
+  const now = new Date();
+  const spDate = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "America/Sao_Paulo",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(now); // YYYY-MM-DD
+  // start of the SP day expressed as an instant
+  const startSP = new Date(`${spDate}T00:00:00-03:00`);
+
+  const { count, error } = await getSupabase()
+    .from("questions")
+    .select("id", { count: "exact", head: true })
+    .eq("creator_id", userId)
+    .gte("created_at", startSP.toISOString());
+
+  if (error) {
+    console.error("hasPremiumQuestionToday error:", error);
+    return true; // fail open: don't discourage creating
+  }
+  return (count ?? 0) === 0;
+}
+
+// ─── Settle a photo challenge after its deadline (idempotent, lazy) ──────────
+export async function settleChallenge(
+  challengeId: string,
+): Promise<{ settled: boolean; reward?: number; submitters?: number }> {
+  const { data, error } = await getSupabase().rpc("settle_challenge", {
+    p_challenge_id: challengeId,
+  });
+  if (error) {
+    console.error("settleChallenge error:", error);
+    return { settled: false };
+  }
+  return data as { settled: boolean; reward?: number; submitters?: number };
 }
 
 // ─── Delete a question (creator-only, full wipe) ─────────────────────────────

@@ -7,7 +7,7 @@ import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/ui/Button";
 import { AchievementToast } from "@/components/AchievementToast";
 import { useAuth } from "@/hooks/useAuth";
-import { createQuestion } from "@/lib/supabase/queries";
+import { createQuestion, hasPremiumQuestionToday } from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
 import type { UnlockedAchievement } from "@/lib/types";
 
@@ -34,10 +34,16 @@ export default function NovaPerguntaPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newAchievements, setNewAchievements] = useState<UnlockedAchievement[]>([]);
+  const [isPremium, setIsPremium] = useState<boolean | null>(null);
 
   useEffect(() => {
     if (!loading && !profile) navigate("/login");
   }, [loading, profile, navigate]);
+
+  useEffect(() => {
+    if (!profile) return;
+    hasPremiumQuestionToday(profile.id).then(setIsPremium);
+  }, [profile]);
 
   if (loading || !profile) {
     return (
@@ -112,6 +118,30 @@ export default function NovaPerguntaPage() {
               <h2 className="text-xl font-bold text-foreground">Nova pergunta</h2>
             </Link>
           </div>
+
+          {/* premium do dia */}
+          {isPremium !== null && (
+            <div
+              className={`rounded-xl border px-4 py-3 mb-6 text-sm ${
+                isPremium
+                  ? "border-accent/40 bg-accent/10 text-foreground"
+                  : "border-border bg-surface text-muted"
+              }`}
+            >
+              {isPremium ? (
+                <>
+                  ⭐ <span className="font-bold">Pergunta premium do dia!</span>{" "}
+                  Esta vale <span className="font-bold text-accent">+20 pts</span>.
+                </>
+              ) : (
+                <>
+                  Você já usou sua premium de hoje — esta vale{" "}
+                  <span className="font-semibold">+5 pts</span>. A próxima premium
+                  é amanhã.
+                </>
+              )}
+            </div>
+          )}
 
           {/* type toggle */}
           <div className="flex bg-surface border border-border rounded-xl p-1 mb-6">
@@ -217,7 +247,9 @@ export default function NovaPerguntaPage() {
             )}
 
             <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting ? "Enviando..." : "Criar pergunta (+5 pts)"}
+              {submitting
+                ? "Enviando..."
+                : `Criar pergunta (+${isPremium === false ? 5 : 20} pts)`}
             </Button>
           </form>
         </div>

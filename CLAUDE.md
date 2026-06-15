@@ -35,7 +35,7 @@ Membros submetem conteúdo para os outros responderem. Dois formatos:
 - **Histórias**: um membro conta uma história sobre si ou sobre alguém do grupo; os outros adivinham de quem se trata.
 - **Enigmas / Múltipla Escolha**: um membro escreve uma charada ou piada com alternativas; os outros escolhem a resposta certa.
 
-**Pontos para**: o criador da pergunta (por submeter) + quem responder corretamente.
+**Pontos para**: o criador da pergunta (por submeter — ver "premium diário") + quem responder corretamente (payout dinâmico por dificuldade, liquidado quando todos respondem — ver "Sistema de Pontos").
 
 ### 2. Submissão de Fotos (com votação do grupo)
 
@@ -81,6 +81,24 @@ Dados importados da ferramenta local de análise do grupo do WhatsApp, recompens
 
 - Tudo alimenta um sistema único de pontos.
 - Ganhos em: respostas certas, submissão de conteúdo, desafios, validações de fotos, atividade no WhatsApp.
+
+#### Criação de perguntas — premium diário
+
+- Cada membro tem **1 pergunta "premium" por dia** (fuso `America/Sao_Paulo`): a 1ª criada no dia vale **+20**; as seguintes valem o padrão **+5** (`create_question`).
+
+#### Payout dinâmico por dificuldade (perguntas)
+
+- Os pontos de quem acerta **não são concedidos na hora** — ficam pendentes até a pergunta ser **liquidada** (`settle_question`), o que ocorre quando **todos os elegíveis** responderam.
+- A dificuldade é definida pelo **% de acertos** entre os respondentes, e define o payout por acerto: **Fácil 5 / Médio 12 / Difícil 20**.
+- Pergunta **impossível** (0 acertos): o criador **perde o bônus de criação** (net zero, nunca negativo).
+- Pergunta **difícil** (com acertos): o criador ganha **+10** (`question_hard_bonus`).
+- No settle, todos os envolvidos recebem push (`question_settled`, gated pela pref `question_completed`); a seção "O que o grupo achou" mostra o tier e os pontos por acerto.
+
+#### Criação de desafios de foto — prêmio escalado
+
+- O criador ganha um prêmio **liquidado após o `deadline`** (`settle_challenge`, idempotente, disparada de forma preguiçosa ao abrir a página do desafio): **8 + 3 × submitters_únicos** (cap em 8 → 11 a 32), via reason `challenge_created`.
+
+Reasons novos em `points_log`: `question_hard_bonus`, `challenge_created`. SQL canônico em `supabase/scoring_v2.sql` (rodar por último).
 
 ### Conquistas (Achievements)
 

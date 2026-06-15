@@ -116,6 +116,42 @@ function buildFromEvent(event: string, payload: any): Built | null {
         excludeUserId: null,
         targetUserId: (payload.target_user_id as string | undefined) ?? null,
       };
+    case "question_settled": {
+      const q = payload.question_id;
+      const content = payload.content as string | undefined;
+      if (payload.role === "answerer") {
+        const correct = payload.is_correct === true;
+        const pts = (payload.points as number | undefined) ?? 0;
+        return {
+          notif: {
+            title: correct ? "Você acertou! 🎉" : "Resultado revelado 👀",
+            body: correct
+              ? `Ganhou ${pts} ${pts === 1 ? "ponto" : "pontos"}${content ? ` em "${truncate(content, 70)}"` : ""}.`
+              : `A resposta foi revelada${content ? ` em "${truncate(content, 70)}"` : ""}. Veja como o grupo se saiu.`,
+            url: `/perguntas/${q}`,
+            tag: `question-done-${q}`,
+          },
+          prefKey: "question_completed",
+          excludeUserId: null,
+          targetUserId: (payload.target_user_id as string | undefined) ?? null,
+        };
+      }
+      // role === "creator"
+      const impossible = payload.difficulty === "impossible";
+      return {
+        notif: {
+          title: impossible ? "Ninguém acertou 😬" : "Pergunta finalizada! 🏁",
+          body: impossible
+            ? `Ninguém acertou sua pergunta${content ? ` "${truncate(content, 70)}"` : ""} — o bônus de criação foi devolvido.`
+            : `Todos responderam sua pergunta${content ? ` "${truncate(content, 70)}"` : ""}. Veja o resultado!`,
+          url: `/perguntas/${q}`,
+          tag: `question-done-${q}`,
+        },
+        prefKey: "question_completed",
+        excludeUserId: null,
+        targetUserId: (payload.target_user_id as string | undefined) ?? null,
+      };
+    }
     case "photo_rejected":
       return {
         notif: {

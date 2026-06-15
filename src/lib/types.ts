@@ -55,6 +55,7 @@ export interface QuestionAnswer {
   created_at: string;
   nickname: string;
   avatar_url: string | null;
+  points_earned: number;
 }
 
 export interface DbQuestion {
@@ -64,6 +65,7 @@ export interface DbQuestion {
   content: string;
   subject_id: string | null;
   status: "active" | "closed";
+  difficulty: "easy" | "medium" | "hard" | "impossible" | null;
   points_creator: number;
   points_correct: number;
   closed_at: string | null;
@@ -87,6 +89,8 @@ export interface LeaderboardEntry {
 export interface AnswerResult {
   is_correct: boolean;
   points_earned: number;
+  // pontos de acerto são concedidos só quando todos respondem (settle)
+  pending?: boolean;
   achievements?: UnlockedAchievement[];
 }
 
@@ -150,6 +154,7 @@ export interface DbPhotoChallenge {
   points_reward: number;
   starts_at: string;
   deadline: string;
+  settled_at: string | null;
   created_at: string;
   creator?: DbProfile;
   completions?: DbPhotoChallengeCompletion[];

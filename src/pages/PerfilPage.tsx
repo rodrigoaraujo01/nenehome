@@ -23,6 +23,8 @@ import type { ProfileStats, DbAchievement, NenecoinBalance, PointsLogEntry, Nene
 const REASON_META: Record<string, { label: string; icon: string; colorClass: string }> = {
   correct_answer:      { label: "Respostas corretas",   icon: "✓",  colorClass: "text-green" },
   question_created:    { label: "Perguntas criadas",    icon: "✏️", colorClass: "text-accent" },
+  question_hard_bonus: { label: "Perguntas difíceis",   icon: "🔥", colorClass: "text-accent" },
+  challenge_created:   { label: "Desafios criados",     icon: "🎯", colorClass: "text-accent" },
   creator_penalty:     { label: "Penalidades",          icon: "✗",  colorClass: "text-red-400" },
   achievement:         { label: "Conquistas",           icon: "🏆", colorClass: "text-accent" },
   photo_approved:      { label: "Fotos aprovadas",      icon: "📸", colorClass: "text-purple" },

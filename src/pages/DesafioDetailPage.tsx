@@ -6,7 +6,7 @@ import { Header } from "@/components/Header";
 import { Avatar } from "@/components/Avatar";
 import { PhotoCard } from "@/components/PhotoCard";
 import { useAuth } from "@/hooks/useAuth";
-import { getChallenge, deletePhotoChallenge } from "@/lib/supabase/queries";
+import { getChallenge, deletePhotoChallenge, settleChallenge } from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
 import type { DbPhotoChallenge } from "@/lib/types";
 
@@ -26,10 +26,15 @@ export default function DesafioDetailPage() {
 
   useEffect(() => {
     if (!profile || !id) return;
-    getChallenge(id, profile.id).then((c) => {
-      setChallenge(c);
-      setFetching(false);
-    });
+    // settle preguiçoso: idempotente e guardado por deadline/settled_at no RPC
+    settleChallenge(id)
+      .catch(() => {})
+      .finally(() => {
+        getChallenge(id, profile.id).then((c) => {
+          setChallenge(c);
+          setFetching(false);
+        });
+      });
   }, [profile, id]);
 
   if (loading || fetching || !profile) {
@@ -128,6 +133,21 @@ export default function DesafioDetailPage() {
                 +{challenge.points_reward} pts
               </span>
             </div>
+
+            {challenge.settled_at && (
+              <div className="flex items-center gap-1.5 text-sm border-t border-border pt-3 text-muted">
+                <span>🏁</span>
+                <span>
+                  Desafio encerrado · {challenge.creator?.nickname ?? "Criador"}{" "}
+                  ganhou{" "}
+                  <span className="text-accent font-bold">
+                    +{8 + 3 * Math.min(completionCount, 8)} pts
+                  </span>{" "}
+                  por {completionCount}{" "}
+                  {completionCount === 1 ? "participante" : "participantes"}.
+                </span>
+              </div>
+            )}
           </div>
 
           {/* submit button */}

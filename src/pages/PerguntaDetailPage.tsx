@@ -13,6 +13,16 @@ import type { DbQuestion, AnswerResult, UnlockedAchievement, QuestionAnswer } fr
 
 const OPTION_LABELS = ["A", "B", "C", "D"];
 
+const DIFFICULTY: Record<
+  string,
+  { label: string; emoji: string; cls: string }
+> = {
+  easy: { label: "Fácil", emoji: "🟢", cls: "text-green" },
+  medium: { label: "Médio", emoji: "🟡", cls: "text-yellow-400" },
+  hard: { label: "Difícil", emoji: "🔴", cls: "text-red-400" },
+  impossible: { label: "Impossível", emoji: "💀", cls: "text-muted" },
+};
+
 export default function PerguntaPage() {
   const { id } = useParams<{ id: string }>();
   const { profile, loading } = useAuth();
@@ -130,6 +140,16 @@ export default function PerguntaPage() {
 
   const showReveal = isCreator || alreadyAnswered || !!result;
 
+  const isSettled = question.status === "closed";
+  const difficultyInfo = question.difficulty
+    ? DIFFICULTY[question.difficulty]
+    : null;
+  // pontos que EU efetivamente ganhei (só existem após o settle)
+  const myPoints =
+    allAnswers.find((a) => a.user_id === profile.id)?.points_earned ?? 0;
+  // acertei mas a pergunta ainda não foi liquidada → pontos pendentes
+  const pointsPending = !!isCorrect && !isSettled;
+
   return (
     <>
       <AchievementToast achievements={newAchievements} />
@@ -176,9 +196,21 @@ export default function PerguntaPage() {
               >
                 {isCorrect ? "✓ Acertou!" : "✗ Errou"}
               </p>
-              {result && result.points_earned > 0 && (
+              {isSettled && isCorrect && myPoints > 0 && (
                 <p className="text-sm text-muted mt-1">
-                  +{result.points_earned} pontos
+                  +{myPoints} pontos
+                  {difficultyInfo && (
+                    <span className={difficultyInfo.cls}>
+                      {" "}
+                      · {difficultyInfo.label} {difficultyInfo.emoji}
+                    </span>
+                  )}
+                </p>
+              )}
+              {pointsPending && (
+                <p className="text-sm text-muted mt-1">
+                  🕒 Os pontos saem quando todos responderem — quanto mais difícil
+                  a pergunta, mais vale.
                 </p>
               )}
               {question.type === "story" && correctSubject && (
@@ -200,6 +232,16 @@ export default function PerguntaPage() {
           {isCreator && (
             <div className="rounded-2xl px-5 py-4 border border-border bg-surface text-center">
               <p className="text-sm text-muted">Você criou esta pergunta e não pode respondê-la.</p>
+              {isSettled && question.difficulty === "impossible" && (
+                <p className="text-sm text-muted mt-2">
+                  💀 Ninguém acertou — o bônus de criação foi devolvido.
+                </p>
+              )}
+              {isSettled && question.difficulty === "hard" && (
+                <p className="text-sm text-green mt-2">
+                  🔴 Pergunta difícil na medida! +10 pontos de bônus.
+                </p>
+              )}
             </div>
           )}
 
@@ -307,9 +349,19 @@ export default function PerguntaPage() {
 
           {showReveal && allAnswers.length > 0 && (
             <section className="space-y-2">
-              <p className="text-xs font-bold text-muted uppercase tracking-wider">
-                O que o grupo achou ({allAnswers.length})
-              </p>
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-bold text-muted uppercase tracking-wider">
+                  O que o grupo achou ({allAnswers.length})
+                </p>
+                {isSettled && difficultyInfo && (
+                  <span
+                    className={`text-xs font-bold ${difficultyInfo.cls}`}
+                    title="Dificuldade da pergunta (definida pelo % de acertos)"
+                  >
+                    {difficultyInfo.emoji} {difficultyInfo.label}
+                  </span>
+                )}
+              </div>
               {allAnswers.map((ans) => {
                 const member = ADULTS.find((m) => m.nickname === ans.nickname);
                 const selectedOption = question.type === "multiple_choice"
@@ -339,6 +391,11 @@ export default function PerguntaPage() {
                         ? guessedMember.nickname
                         : "—"}
                     </span>
+                    {isSettled && ans.is_correct && ans.points_earned > 0 && (
+                      <span className="text-xs font-semibold text-green">
+                        +{ans.points_earned}
+                      </span>
+                    )}
                     <span className={`text-sm font-bold ${ans.is_correct ? "text-green" : "text-red-400"}`}>
                       {ans.is_correct ? "✓" : "✗"}
                     </span>

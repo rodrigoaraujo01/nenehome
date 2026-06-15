@@ -12,7 +12,7 @@ const PREF_ITEMS: { key: keyof NotificationPrefs; label: string }[] = [
   { key: "new_question", label: "Novas perguntas" },
   { key: "new_challenge", label: "Novos desafios de foto" },
   { key: "new_photo", label: "Novas fotos para votar" },
-  { key: "question_completed", label: "Todos responderam minha pergunta" },
+  { key: "question_completed", label: "Resultado das perguntas (pontos liberados)" },
   { key: "photo_rejected", label: "Minha foto foi rejeitada" },
 ];
 
