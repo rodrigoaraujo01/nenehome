@@ -6,6 +6,7 @@ import type { DbPhotoChallenge } from "@/lib/types";
 
 interface ChallengeCardProps {
   challenge: DbPhotoChallenge;
+  variant?: "mission" | "archive" | "mine";
 }
 
 function formatDeadline(deadline: string): string {
@@ -29,31 +30,85 @@ function getTimeLeft(deadline: string): string {
   return `${mins}min restantes`;
 }
 
-export function ChallengeCard({ challenge }: ChallengeCardProps) {
+function isUrgent(deadline: string): boolean {
+  const diff = new Date(deadline).getTime() - Date.now();
+  return diff > 0 && diff <= 1000 * 60 * 60 * 24;
+}
+
+function CameraIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3Z" />
+      <circle cx="12" cy="13" r="3" />
+    </svg>
+  );
+}
+
+export function ChallengeCard({ challenge, variant = "mission" }: ChallengeCardProps) {
   const isExpired = new Date(challenge.deadline) < new Date();
   const isCompleted = !!challenge.my_completion;
   const completionCount = challenge.completion_count ?? 0;
+  const completionProgress =
+    ADULTS.length > 0 ? Math.min((completionCount / ADULTS.length) * 100, 100) : 0;
+  const urgent = isUrgent(challenge.deadline);
+  const creatorReward = 8 + 3 * Math.min(completionCount, 8);
+
+  const status = (() => {
+    if (isExpired) {
+      return {
+        label: "Expirado",
+        cls: "bg-red-500/15 text-red-400",
+      };
+    }
+    if (isCompleted) {
+      return {
+        label: "Você completou",
+        cls: "bg-green/15 text-green",
+      };
+    }
+    if (urgent) {
+      return {
+        label: "Prazo acabando",
+        cls: "bg-yellow-500/15 text-yellow-400",
+      };
+    }
+    return {
+      label: "Enviar foto",
+      cls: "bg-accent text-background",
+    };
+  })();
+
+  const cardClass = [
+    "bg-surface border rounded-2xl p-5 transition-colors",
+    !isExpired && !isCompleted && variant === "mission"
+      ? "border-accent/35 hover:border-accent"
+      : "border-border hover:border-accent/40",
+    variant === "archive" ? "opacity-80" : "",
+  ].join(" ");
 
   return (
     <Link to={`/fotos/desafios/${challenge.id}`} className="block">
-      <div className="bg-surface border border-border rounded-2xl p-5 hover:border-accent/40 transition-colors">
+      <div className={cardClass}>
         <div className="flex items-start justify-between gap-3 mb-3">
           <h3 className="font-bold text-sm leading-snug line-clamp-2 flex-1">
             {challenge.title}
           </h3>
-          {isExpired ? (
-            <span className="text-xs font-bold px-2 py-1 rounded-full bg-red-500/15 text-red-400 shrink-0">
-              Expirado
-            </span>
-          ) : isCompleted ? (
-            <span className="text-xs font-bold px-2 py-1 rounded-full bg-green/15 text-green shrink-0">
-              Completo
-            </span>
-          ) : (
-            <span className="text-xs font-bold px-2 py-1 rounded-full bg-yellow-500/15 text-yellow-400 shrink-0">
-              Ativo
-            </span>
-          )}
+          <span
+            className={`inline-flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full shrink-0 ${status.cls}`}
+          >
+            {!isExpired && !isCompleted && <CameraIcon />}
+            {status.label}
+          </span>
         </div>
 
         {challenge.description && (
@@ -79,6 +134,27 @@ export function ChallengeCard({ challenge }: ChallengeCardProps) {
             +{challenge.points_reward} pts
           </span>
         </div>
+
+        <div className="mt-4 space-y-2">
+          <div className="flex items-center justify-between text-xs text-muted">
+            <span>Completaram</span>
+            <span>
+              {completionCount}/{ADULTS.length}
+            </span>
+          </div>
+          <div className="h-1.5 bg-border rounded-full overflow-hidden">
+            <div
+              className="h-full bg-accent rounded-full transition-all"
+              style={{ width: `${completionProgress}%` }}
+            />
+          </div>
+        </div>
+
+        {!isExpired && (
+          <p className="text-[11px] text-muted mt-3">
+            Criador recebe +{creatorReward} no prazo, até +32.
+          </p>
+        )}
 
         <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-xs text-muted">
