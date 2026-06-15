@@ -105,6 +105,10 @@ async function getQuestionAnswerCounts(
 export async function getQuestions(userId: string): Promise<DbQuestion[]> {
   const sb = getSupabase();
 
+  // Inclui ativas E liquidadas (closed): perguntas liquidadas precisam continuar
+  // visíveis para mostrar o resultado/pontos. Uma pergunta liquidada implica que
+  // todos os adultos não-criadores já responderam, então nunca cai em "para
+  // responder".
   const { data: questions, error } = await sb
     .from("questions")
     .select(`
@@ -112,7 +116,6 @@ export async function getQuestions(userId: string): Promise<DbQuestion[]> {
       creator:profiles!creator_id(id, nickname, avatar_url),
       options:question_options(id, text, is_correct, position)
     `)
-    .eq("status", "active")
     .order("created_at", { ascending: false });
 
   if (error || !questions) return [];

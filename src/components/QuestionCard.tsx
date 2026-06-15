@@ -12,9 +12,17 @@ const TYPE_LABEL: Record<DbQuestion["type"], string> = {
   multiple_choice: "Múltipla escolha",
 };
 
+const DIFFICULTY_BADGE: Record<string, string> = {
+  easy: "🟢 Fácil",
+  medium: "🟡 Médio",
+  hard: "🔴 Difícil",
+  impossible: "💀 Impossível",
+};
+
 export function QuestionCard({ question }: QuestionCardProps) {
   const answered = question.my_answer !== null && question.my_answer !== undefined;
   const correct = question.my_answer?.is_correct;
+  const closed = question.status === "closed";
 
   return (
     <Link to={`/perguntas/${question.id}`} className="block">
@@ -22,8 +30,17 @@ export function QuestionCard({ question }: QuestionCardProps) {
         <div className="flex items-center justify-between mb-3">
           <span className="text-xs font-bold uppercase tracking-wider text-muted">
             {TYPE_LABEL[question.type]}
+            {closed && question.difficulty && (
+              <span className="ml-2 normal-case font-semibold text-muted">
+                {DIFFICULTY_BADGE[question.difficulty]}
+              </span>
+            )}
           </span>
-          {answered && (
+          {closed && !answered ? (
+            <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-border/60 text-muted">
+              Encerrada
+            </span>
+          ) : answered && (
             <span
               className={`text-xs font-bold px-2 py-0.5 rounded-full ${
                 correct
