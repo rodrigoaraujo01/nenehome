@@ -239,6 +239,22 @@ export async function hasPremiumQuestionToday(userId: string): Promise<boolean> 
   return (count ?? 0) === 0;
 }
 
+// ─── Settle a question once everyone has answered (idempotent, lazy) ─────────
+// Safe to call anytime: settle_question only acts when all eligible (non-creator
+// adults) have answered. Covers questions that filled up before settle existed.
+export async function settleQuestion(
+  questionId: string,
+): Promise<{ settled: boolean; difficulty?: string }> {
+  const { data, error } = await getSupabase().rpc("settle_question", {
+    p_question_id: questionId,
+  });
+  if (error) {
+    console.error("settleQuestion error:", error);
+    return { settled: false };
+  }
+  return data as { settled: boolean; difficulty?: string };
+}
+
 // ─── Settle a photo challenge after its deadline (idempotent, lazy) ──────────
 export async function settleChallenge(
   challengeId: string,

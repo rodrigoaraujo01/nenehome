@@ -7,7 +7,7 @@ import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/ui/Button";
 import { AchievementToast } from "@/components/AchievementToast";
 import { useAuth } from "@/hooks/useAuth";
-import { getQuestion, submitAnswer, getQuestionAnswers, deleteQuestion } from "@/lib/supabase/queries";
+import { getQuestion, submitAnswer, getQuestionAnswers, deleteQuestion, settleQuestion } from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
 import type { DbQuestion, AnswerResult, UnlockedAchievement, QuestionAnswer } from "@/lib/types";
 
@@ -45,14 +45,20 @@ export default function PerguntaPage() {
 
   useEffect(() => {
     if (!profile || !id) return;
-    getQuestion(id, profile.id).then(async (q) => {
-      setQuestion(q);
-      if (q?.my_answer || q?.creator_id === profile.id) {
-        const answers = await getQuestionAnswers(id);
-        setAllAnswers(answers);
-      }
-      setFetching(false);
-    });
+    // settle preguiçoso: idempotente e guardado por elegibilidade no RPC. Cobre
+    // perguntas que já tinham todas as respostas antes do settle existir.
+    settleQuestion(id)
+      .catch(() => {})
+      .finally(() => {
+        getQuestion(id, profile.id).then(async (q) => {
+          setQuestion(q);
+          if (q?.my_answer || q?.creator_id === profile.id) {
+            const answers = await getQuestionAnswers(id);
+            setAllAnswers(answers);
+          }
+          setFetching(false);
+        });
+      });
   }, [profile, id]);
 
   if (loading || fetching || !profile) {

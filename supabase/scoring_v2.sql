@@ -183,6 +183,7 @@ declare
   v_question   questions%rowtype;
   v_total      int;
   v_correct    int;
+  v_eligible   int;
   v_ratio      numeric;
   v_difficulty text;
   v_per_pts    int := 0;
@@ -196,10 +197,19 @@ begin
     return json_build_object('settled', false, 'already', true);
   end if;
 
+  -- só liquida quando todos os elegíveis (adultos que não são o criador)
+  -- já responderam — assim é seguro chamar a qualquer momento (settle preguiçoso).
+  select count(*) into v_total from answers where question_id = p_question_id;
+  select count(*) into v_eligible
+    from profiles
+    where role = 'adult' and id <> v_question.creator_id;
+  if v_eligible <= 0 or v_total < v_eligible then
+    return json_build_object('settled', false, 'not_ready', true);
+  end if;
+
   -- fecha (idempotência via guard de status acima)
   update questions set status = 'closed', closed_at = now() where id = p_question_id;
 
-  select count(*) into v_total   from answers where question_id = p_question_id;
   select count(*) into v_correct from answers where question_id = p_question_id and is_correct = true;
 
   if v_total = 0 or v_correct = 0 then
@@ -563,5 +573,22 @@ begin
     'photos_removed', coalesce(array_length(v_sub_ids, 1), 0),
     'storage_error', v_storage_error
   );
+end;
+$$;
+
+-- ─────────────────────────────────────────────
+-- Backfill — liquida perguntas que já tinham todas as respostas ANTES desta
+-- migração existir (o settle só dispara na última resposta, então perguntas já
+-- completas ficariam presas em 'active' para sempre). settle_question é
+-- idempotente e só age quando todos os elegíveis responderam, então é seguro
+-- chamar para todas as perguntas ativas.
+-- ─────────────────────────────────────────────
+do $$
+declare
+  v_id uuid;
+begin
+  for v_id in select id from questions where status = 'active' loop
+    perform settle_question(v_id);
+  end loop;
 end;
 $$;
