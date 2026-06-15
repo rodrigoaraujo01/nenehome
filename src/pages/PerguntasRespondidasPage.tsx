@@ -14,6 +14,20 @@ interface CreatorStat {
   total: number;
 }
 
+type Difficulty = "easy" | "medium" | "hard";
+
+interface DifficultyStat {
+  difficulty: Difficulty;
+  correct: number;
+  total: number;
+}
+
+const difficultyMeta: Record<Difficulty, { label: string; emoji: string }> = {
+  easy: { label: "Fácil", emoji: "🟢" },
+  medium: { label: "Médio", emoji: "🟡" },
+  hard: { label: "Difícil", emoji: "🔴" },
+};
+
 export default function PerguntasRespondidasPage() {
   const { profile, loading } = useAuth();
   const navigate = useNavigate();
@@ -64,6 +78,33 @@ export default function PerguntasRespondidasPage() {
       if (rb !== ra) return rb - ra;
       return b.total - a.total;
     });
+  }, [answered]);
+
+  const byDifficulty = useMemo<DifficultyStat[]>(() => {
+    const map = new Map<Difficulty, DifficultyStat>(
+      (Object.keys(difficultyMeta) as Difficulty[]).map((difficulty) => [
+        difficulty,
+        { difficulty, correct: 0, total: 0 },
+      ]),
+    );
+
+    for (const q of answered) {
+      if (
+        q.difficulty !== "easy" &&
+        q.difficulty !== "medium" &&
+        q.difficulty !== "hard"
+      ) {
+        continue;
+      }
+
+      const stat = map.get(q.difficulty);
+      if (!stat) continue;
+
+      stat.total += 1;
+      if (q.my_answer?.is_correct) stat.correct += 1;
+    }
+
+    return [...map.values()].filter((stat) => stat.total > 0);
   }, [answered]);
 
   if (loading || !profile) {
@@ -158,6 +199,42 @@ export default function PerguntasRespondidasPage() {
                             </p>
                           </div>
                         </Link>
+                      );
+                    })}
+                  </div>
+                </section>
+              )}
+
+              {byDifficulty.length > 0 && (
+                <section>
+                  <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
+                    Por dificuldade
+                  </h3>
+                  <div className="space-y-2">
+                    {byDifficulty.map((stat) => {
+                      const ratio = Math.round(
+                        (stat.correct / stat.total) * 100,
+                      );
+                      const meta = difficultyMeta[stat.difficulty];
+
+                      return (
+                        <div
+                          key={stat.difficulty}
+                          className="bg-surface border border-border rounded-2xl p-3 flex items-center gap-3"
+                        >
+                          <span className="text-2xl w-8 text-center">
+                            {meta.emoji}
+                          </span>
+                          <span className="text-sm font-semibold flex-1">
+                            {meta.label}
+                          </span>
+                          <div className="text-right">
+                            <p className="text-sm font-bold">{ratio}%</p>
+                            <p className="text-xs text-muted">
+                              {stat.correct}/{stat.total}
+                            </p>
+                          </div>
+                        </div>
                       );
                     })}
                   </div>

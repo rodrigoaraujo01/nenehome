@@ -115,8 +115,44 @@ export default function RegrasPage() {
               </div>
             </div>
             <div className="flex gap-2 flex-wrap">
-              <Tag>Acertar = +10 pts</Tag>
-              <Tag>Criar pergunta = +5 pts</Tag>
+              <Tag>1ª pergunta do dia = +20 pts</Tag>
+              <Tag>Demais perguntas = +5 pts</Tag>
+            </div>
+            <div className="bg-surface border border-border rounded-2xl p-4 space-y-3">
+              <div>
+                <p className="font-semibold text-foreground mb-1">
+                  Pergunta premium do dia
+                </p>
+                <p>
+                  Toda pessoa tem 1 pergunta premium por dia. A primeira
+                  pergunta criada no dia vale +20 pontos; as próximas valem +5.
+                </p>
+              </div>
+              <div>
+                <p className="font-semibold text-foreground mb-1">
+                  Pontos por acerto
+                </p>
+                <p>
+                  Quem acerta recebe pontos só quando todo mundo responder. Aí a
+                  pergunta ganha uma dificuldade conforme a taxa de acerto do
+                  grupo:
+                </p>
+                <div className="flex gap-2 flex-wrap mt-2">
+                  <Tag>Fácil = +5 pts</Tag>
+                  <Tag>Médio = +12 pts</Tag>
+                  <Tag>Difícil = +20 pts</Tag>
+                </div>
+              </div>
+              <div>
+                <p className="font-semibold text-foreground mb-1">
+                  Bônus e perguntas impossíveis
+                </p>
+                <p>
+                  Se a pergunta for difícil, quem criou ganha +10 pontos de
+                  bônus. Se ninguém acertar, ela vira impossível e o criador
+                  perde o bônus de criação da pergunta.
+                </p>
+              </div>
             </div>
           </Section>
 
@@ -139,10 +175,25 @@ export default function RegrasPage() {
             <div className="flex gap-2 flex-wrap">
               <Tag>Foto aprovada = +20 pts</Tag>
               <Tag>Desafio = +30 pts extras</Tag>
+              <Tag>Criar desafio = até +32 pts</Tag>
             </div>
             <p className="text-xs">
-              O criador do desafio define os pontos extras (entre 5 e 200). O
-              padrão é 30.
+              O criador do desafio define os pontos extras para quem completa
+              (entre 5 e 200). O padrão é 30.
+            </p>
+            <p className="text-xs">
+              Criar desafio também pontua: quando o prazo acaba, o criador ganha
+              8 + 3 pontos por participante único que completou o desafio, com
+              limite de 8 participantes.
+            </p>
+          </Section>
+
+          {/* Notificações */}
+          <Section title="Notificações">
+            <p>
+              Você pode receber avisos quando alguém cria conteúdo novo e quando
+              uma pergunta é finalizada. No fim da pergunta, os pontos são
+              liberados e todo mundo consegue ver a dificuldade e o resultado.
             </p>
           </Section>
 
