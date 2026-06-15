@@ -146,9 +146,13 @@ begin
     select array_cat(v_achievements, check_points_achievements(v_user_id)) into v_achievements;
   end if;
 
-  -- liquida quando todos os elegíveis responderam
+  -- liquida quando todos os elegíveis responderam.
+  -- elegíveis = adultos que NÃO são o criador (o criador não responde a própria
+  -- pergunta), então com 8 adultos o settle acontece na 7ª resposta.
   select count(*) into v_answer_count from answers where question_id = p_question_id;
-  select count(*) - 1 into v_eligible from profiles where role = 'adult';
+  select count(*) into v_eligible
+    from profiles
+    where role = 'adult' and id <> v_question.creator_id;
   if v_eligible > 0 and v_answer_count >= v_eligible then
     perform settle_question(p_question_id);
   end if;
