@@ -34,6 +34,9 @@ export interface DbQuestionOption {
   text: string;
   is_correct: boolean;
   position: number;
+  // true quando a opção é uma 5ª alternativa-decoy injetada por Sabotagem
+  // (existe só para o alvo, entregue via get_question_sabotage)
+  is_decoy?: boolean;
 }
 
 export interface DbAnswer {
@@ -43,6 +46,7 @@ export interface DbAnswer {
   selected_option_id: string | null;
   subject_guess_id: string | null;
   is_correct: boolean;
+  assisted?: boolean;
   created_at: string;
 }
 
@@ -91,7 +95,65 @@ export interface AnswerResult {
   points_earned: number;
   // pontos de acerto são concedidos só quando todos respondem (settle)
   pending?: boolean;
+  // Segunda Chance: tentativa errada descartada, pode responder de novo
+  retry_granted?: boolean;
   achievements?: UnlockedAchievement[];
+}
+
+// ─── Power-ups (loja) ──────────────────────────────────────────────────────────
+
+export interface Powerup {
+  key: string;
+  title: string;
+  description: string;
+  price: number;
+  icon: string;
+  active: boolean;
+  sort: number;
+}
+
+export interface PowerupInventoryItem {
+  powerup_key: string;
+  qty: number;
+}
+
+export interface BuyPowerupResult {
+  success?: boolean;
+  key?: string;
+  qty?: number;
+  nenecoin_balance?: number;
+  error?: string;
+}
+
+export interface EliminateResult {
+  option_id?: string;
+  qty?: number;
+  error?: string;
+}
+
+export interface SabotageResult {
+  success?: boolean;
+  qty?: number;
+  error?: string;
+}
+
+export interface WcScoreline {
+  score: string;
+  count: number;
+}
+
+export interface WcDistribution {
+  total: number;
+  home_win: number;
+  draw: number;
+  away_win: number;
+  scorelines: WcScoreline[];
+}
+
+export interface WcRevealResult {
+  distribution?: WcDistribution;
+  qty?: number;
+  error?: string;
 }
 
 export interface UnlockedAchievement {

@@ -98,7 +98,7 @@ Dados importados da ferramenta local de análise do grupo do WhatsApp, recompens
 
 - O criador ganha um prêmio **liquidado após o `deadline`** (`settle_challenge`, idempotente, disparada de forma preguiçosa ao abrir a página do desafio): **8 + 3 × submitters_únicos** (cap em 8 → 11 a 32), via reason `challenge_created`.
 
-Reasons novos em `points_log`: `question_hard_bonus`, `challenge_created`. SQL canônico em `supabase/scoring_v2.sql` (rodar por último).
+Reasons novos em `points_log`: `question_hard_bonus`, `challenge_created`. SQL canônico em `supabase/scoring_v2.sql`. **Obs.:** `supabase/powerups.sql` agora redefine `submit_answer`/`settle_question` por cima — é o **último** arquivo a rodar (ver Loja de Power-ups).
 
 ### Conquistas (Achievements)
 
@@ -126,6 +126,20 @@ Moeda interna do app, separada dos pontos. Saldo de cada membro é derivado da s
 - `wc_bet_placed` / `wc_bet_won` / `wc_bet_refund` — apostas do Bolão da Copa.
 - `gift_sent` / `gift_received` — presentear nenecoins entre membros (com mensagem).
 - `fire_conversion_out` / `fire_conversion_in` — conversão de nenecoins ociosas em **firecoins**.
+- `powerup_purchase` — compra de power-ups na Loja (`RPC buy_powerup`).
+- `powerup_payout` — prêmio do power-up **Dobro ou Nada** quando a resposta acerta (no settle).
+
+### Loja de Power-ups (`/loja`)
+
+Sink de nenecoins (motivado pelo acúmulo por causa do Bolão da Copa). Modelo **inventário**: compra na loja (`buy_powerup`) → fica no `powerup_ledger` (saldo derivado, RPC `get_powerup_inventory`) → usa em contexto. Catálogo server-authoritative na tabela `powerups`. Princípio: **vender variância/utilidade, não pontos garantidos** (sem pay-to-win).
+
+- **Eliminar Alternativa** (`use_eliminate_option`) — remove 1 alternativa errada de uma MC; cap 1/pergunta; marca a resposta como `assisted`.
+- **Segunda Chance** — ao confirmar, se errar, descarta a tentativa (não persiste, não liquida) e libera nova resposta; marca `assisted`. Implementado via flag em `submit_answer`.
+- **Dobro ou Nada** — token-aposta: acertou (no settle) → `powerup_payout`; errou → perde o token. Não é `assisted`.
+- **Sabotagem** (`deploy_sabotage`) — injeta uma 5ª alternativa falsa (texto do saboteur) numa MC, só para um alvo que ainda não respondeu. Entregue via `get_question_sabotage` (não vaza que é falsa); ao escolhê-la conta como erro (`question_sabotages.hit`).
+- **Revelar Distribuição** (`reveal_wc_distribution`) — destrava a distribuição **anônima** dos palpites de um jogo da Copa antes do fechamento.
+
+Fair play: `answers.assisted` é **excluído** do %-de-acertos que define a dificuldade (Fácil/Médio/Difícil), então power-ups não distorcem o payout de todos. Tabelas auxiliares: `powerups`, `powerup_ledger`, `question_assists`, `question_sabotages`, `wc_distribution_reveals`. SQL em `supabase/powerups.sql` (**novo "rodar por último"**, depois de `scoring_v2.sql` — redefine `submit_answer` e `settle_question`).
 
 ### Firecoins
 
@@ -252,6 +266,7 @@ supabase/          — SQL de schema, seeds e migrações
 | `/copa/ranking` | Ranking do bolão |
 | `/copa/regras` | Regras de pontuação |
 | `/perfil/:nickname` | Perfil do membro |
+| `/loja` | Loja de power-ups |
 | `/regras` | Regras gerais |
 
 ### Variáveis de Ambiente

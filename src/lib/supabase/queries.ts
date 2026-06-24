@@ -26,6 +26,13 @@ import type {
   WcPredictionResult,
   WcScoreResult,
   QuestionAnswer,
+  Powerup,
+  PowerupInventoryItem,
+  BuyPowerupResult,
+  EliminateResult,
+  SabotageResult,
+  WcRevealResult,
+  WcDistribution,
 } from "@/lib/types";
 import { MEMBERS } from "@/lib/constants";
 
@@ -167,12 +174,34 @@ export async function getQuestion(
 
   const countMap = await getQuestionAnswerCounts([id]);
 
+  let options = (question.options ?? []).sort(
+    (a: { position: number }, b: { position: number }) => a.position - b.position
+  );
+
+  // Sabotagem: injeta a 5ª alternativa-decoy se houver uma mirando este usuário
+  // (entregue via RPC pra não vazar que é falsa; só aparece antes de responder).
+  if (question.type === "multiple_choice" && !myAnswer) {
+    const { data: sab } = await sb.rpc("get_question_sabotage", {
+      p_question_id: id,
+    });
+    if (sab && sab.id) {
+      options = [
+        ...options,
+        {
+          id: sab.id as string,
+          question_id: id,
+          text: sab.text as string,
+          is_correct: false,
+          position: 99,
+          is_decoy: true,
+        },
+      ];
+    }
+  }
+
   return {
     ...question,
-    options: question.options?.sort(
-      (a: { position: number }, b: { position: number }) =>
-        a.position - b.position
-    ),
+    options,
     answer_count: countMap.get(id) ?? 0,
     my_answer: myAnswer ?? null,
   } as DbQuestion;
@@ -302,11 +331,17 @@ export async function submitAnswer(params: {
   question_id: string;
   selected_option_id?: string;
   subject_guess_id?: string;
+  use_second_chance?: boolean;
+  use_double_or_nothing?: boolean;
+  sabotage_option_id?: string;
 }): Promise<AnswerResult | null> {
   const { data, error } = await getSupabase().rpc("submit_answer", {
     p_question_id: params.question_id,
     p_selected_option_id: params.selected_option_id ?? null,
     p_subject_guess_id: params.subject_guess_id ?? null,
+    p_use_second_chance: params.use_second_chance ?? false,
+    p_use_double_or_nothing: params.use_double_or_nothing ?? false,
+    p_sabotage_option_id: params.sabotage_option_id ?? null,
   });
 
   if (error) {
@@ -1145,4 +1180,90 @@ export async function saveNotificationPrefs(
       { onConflict: "user_id" },
     );
   if (error) throw error;
+}
+
+// ─── Power-ups / Loja ──────────────────────────────────────────────────────────
+
+export async function getPowerups(): Promise<Powerup[]> {
+  const { data, error } = await getSupabase()
+    .from("powerups")
+    .select("*")
+    .eq("active", true)
+    .order("sort");
+  if (error || !data) return [];
+  return data as Powerup[];
+}
+
+export async function getPowerupInventory(): Promise<PowerupInventoryItem[]> {
+  const { data, error } = await getSupabase().rpc("get_powerup_inventory");
+  if (error || !data) return [];
+  return data as PowerupInventoryItem[];
+}
+
+export async function buyPowerup(
+  key: string,
+  qty: number,
+): Promise<BuyPowerupResult> {
+  const { data, error } = await getSupabase().rpc("buy_powerup", {
+    p_key: key,
+    p_qty: qty,
+  });
+  if (error) return { error: error.message };
+  return data as BuyPowerupResult;
+}
+
+export async function useEliminateOption(
+  questionId: string,
+): Promise<EliminateResult> {
+  const { data, error } = await getSupabase().rpc("use_eliminate_option", {
+    p_question_id: questionId,
+  });
+  if (error) return { error: error.message };
+  return data as EliminateResult;
+}
+
+export async function deploySabotage(params: {
+  question_id: string;
+  target_user_id: string;
+  decoy_text: string;
+}): Promise<SabotageResult> {
+  const { data, error } = await getSupabase().rpc("deploy_sabotage", {
+    p_question_id: params.question_id,
+    p_target_user_id: params.target_user_id,
+    p_decoy_text: params.decoy_text,
+  });
+  if (error) return { error: error.message };
+  return data as SabotageResult;
+}
+
+export async function revealWcDistribution(
+  matchId: string,
+): Promise<WcRevealResult> {
+  const { data, error } = await getSupabase().rpc("reveal_wc_distribution", {
+    p_match_id: matchId,
+  });
+  if (error) return { error: error.message };
+  return data as WcRevealResult;
+}
+
+export async function getWcDistribution(
+  matchId: string,
+): Promise<WcDistribution | null> {
+  const { data, error } = await getSupabase().rpc("get_wc_distribution", {
+    p_match_id: matchId,
+  });
+  if (error || !data) return null;
+  return data as WcDistribution;
+}
+
+export async function getAdultProfiles(): Promise<
+  { id: string; nickname: string; avatar_url: string | null }[]
+> {
+  const { data, error } = await getSupabase()
+    .from("profiles")
+    .select("id, nickname, avatar_url")
+    .eq("role", "adult")
+    .order("nickname");
+  if (error || !data) return [];
+  return data as { id: string; nickname: string; avatar_url: string | null }[];
 }

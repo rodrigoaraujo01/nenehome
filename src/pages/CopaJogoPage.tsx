@@ -14,9 +14,12 @@ import {
   scoreWcMatch,
   revertWcMatch,
   getNenecoinBalance,
+  getWcDistribution,
+  revealWcDistribution,
+  getPowerupInventory,
 } from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
-import type { WcMatch, WcPrediction, NenecoinBalance, UnlockedAchievement } from "@/lib/types";
+import type { WcMatch, WcPrediction, NenecoinBalance, UnlockedAchievement, WcDistribution } from "@/lib/types";
 
 const POINTS_LABELS: Record<number, string> = {
   25: "Placar exato",
@@ -36,6 +39,12 @@ export default function CopaJogoPage() {
   const [predictions, setPredictions] = useState<WcPrediction[]>([]);
   const [balance, setBalance] = useState<NenecoinBalance | null>(null);
   const [fetching, setFetching] = useState(true);
+
+  // Revelar Distribuição (power-up)
+  const [dist, setDist] = useState<WcDistribution | null>(null);
+  const [wcRevealQty, setWcRevealQty] = useState(0);
+  const [revealing, setRevealing] = useState(false);
+  const [revealError, setRevealError] = useState("");
 
   const [homeScore, setHomeScore] = useState("");
   const [awayScore, setAwayScore] = useState("");
@@ -62,7 +71,9 @@ export default function CopaJogoPage() {
     Promise.all([
       getWcMatch(id!, profile.id),
       getNenecoinBalance(),
-    ]).then(([data, bal]) => {
+      getWcDistribution(id!),
+      getPowerupInventory(),
+    ]).then(([data, bal, distData, inv]) => {
       if (data) {
         setMatch(data.match);
         setPredictions(data.predictions);
@@ -77,6 +88,8 @@ export default function CopaJogoPage() {
         }
       }
       setBalance(bal);
+      setDist(distData);
+      setWcRevealQty(inv.find((i) => i.powerup_key === "wc_reveal")?.qty ?? 0);
       setFetching(false);
     });
   }, [profile, id]);
@@ -130,6 +143,19 @@ export default function CopaJogoPage() {
       setBalance(bal);
     }
     setSubmitting(false);
+  }
+
+  async function handleReveal() {
+    setRevealError("");
+    setRevealing(true);
+    const res = await revealWcDistribution(match!.id);
+    setRevealing(false);
+    if (res.error) {
+      setRevealError(res.error);
+      return;
+    }
+    if (res.distribution) setDist(res.distribution);
+    setWcRevealQty((q) => Math.max(0, q - 1));
   }
 
   async function handleAdminScore(e: React.FormEvent) {
@@ -310,6 +336,73 @@ export default function CopaJogoPage() {
                 {match.my_prediction ? "Atualizar palpite" : "Confirmar palpite"}
               </Button>
             </form>
+          )}
+
+          {/* Revelar Distribuição (power-up) — enquanto os palpites estão abertos */}
+          {betsOpen && (
+            <div className="bg-surface border border-purple/20 rounded-2xl p-4 space-y-3">
+              <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-bold">🔭 Distribuição dos palpites</h3>
+                {!dist && wcRevealQty > 0 && (
+                  <button
+                    onClick={handleReveal}
+                    disabled={revealing}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-full border border-purple/40 text-purple hover:bg-purple/10 transition-colors disabled:opacity-50"
+                  >
+                    {revealing ? "..." : `Revelar (${wcRevealQty})`}
+                  </button>
+                )}
+              </div>
+              {revealError && <p className="text-xs text-red-400">{revealError}</p>}
+
+              {dist ? (
+                dist.total === 0 ? (
+                  <p className="text-xs text-muted">Ninguém palpitou ainda.</p>
+                ) : (
+                  <div className="space-y-2">
+                    <div className="flex gap-2 text-xs">
+                      <span className="bg-background border border-border rounded-full px-3 py-1">
+                        {match.home_code} {Math.round((dist.home_win / dist.total) * 100)}%
+                      </span>
+                      <span className="bg-background border border-border rounded-full px-3 py-1">
+                        Empate {Math.round((dist.draw / dist.total) * 100)}%
+                      </span>
+                      <span className="bg-background border border-border rounded-full px-3 py-1">
+                        {match.away_code} {Math.round((dist.away_win / dist.total) * 100)}%
+                      </span>
+                    </div>
+                    {dist.scorelines.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {dist.scorelines.map((s) => (
+                          <span
+                            key={s.score}
+                            className="text-xs bg-background border border-border rounded-lg px-2 py-1"
+                          >
+                            {s.score} <span className="text-muted">×{s.count}</span>
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                    <p className="text-[11px] text-muted">
+                      Anônimo e ao vivo — ainda pode mudar até o fechamento.
+                    </p>
+                  </div>
+                )
+              ) : wcRevealQty > 0 ? (
+                <p className="text-xs text-muted">
+                  Use um power-up pra ver como o grupo está palpitando (anônimo)
+                  antes do fechamento.
+                </p>
+              ) : (
+                <p className="text-xs text-muted">
+                  Compre o power-up{" "}
+                  <Link to="/loja" className="text-purple font-semibold">
+                    Revelar Distribuição
+                  </Link>{" "}
+                  na loja pra espiar a tendência do grupo.
+                </p>
+              )}
+            </div>
           )}
 
           {/* User's prediction (when bets are closed) */}

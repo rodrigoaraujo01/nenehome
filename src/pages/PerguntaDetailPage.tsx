@@ -2,16 +2,27 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
 import { Header } from "@/components/Header";
 import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/ui/Button";
 import { AchievementToast } from "@/components/AchievementToast";
 import { useAuth } from "@/hooks/useAuth";
-import { getQuestion, submitAnswer, getQuestionAnswers, deleteQuestion, settleQuestion } from "@/lib/supabase/queries";
+import {
+  getQuestion,
+  submitAnswer,
+  getQuestionAnswers,
+  deleteQuestion,
+  settleQuestion,
+  getPowerupInventory,
+  useEliminateOption,
+  deploySabotage,
+  getAdultProfiles,
+} from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
 import type { DbQuestion, AnswerResult, UnlockedAchievement, QuestionAnswer } from "@/lib/types";
 
-const OPTION_LABELS = ["A", "B", "C", "D"];
+const OPTION_LABELS = ["A", "B", "C", "D", "E"];
 
 const DIFFICULTY: Record<
   string,
@@ -39,6 +50,23 @@ export default function PerguntaPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
+  // power-ups
+  const [inventory, setInventory] = useState<Record<string, number>>({});
+  const [eliminatedOptionId, setEliminatedOptionId] = useState<string | null>(null);
+  const [useSecondChance, setUseSecondChance] = useState(false);
+  const [secondChanceUsed, setSecondChanceUsed] = useState(false);
+  const [useDoubleOrNothing, setUseDoubleOrNothing] = useState(false);
+  const [powerupMsg, setPowerupMsg] = useState<string | null>(null);
+  const [powerupBusy, setPowerupBusy] = useState(false);
+  const [sabotageOpen, setSabotageOpen] = useState(false);
+  const [sabotageTarget, setSabotageTarget] = useState<string | null>(null);
+  const [sabotageText, setSabotageText] = useState("");
+  const [sabotageBusy, setSabotageBusy] = useState(false);
+  const [sabotageError, setSabotageError] = useState<string | null>(null);
+  const [adults, setAdults] = useState<
+    { id: string; nickname: string; avatar_url: string | null }[]
+  >([]);
+
   useEffect(() => {
     if (!loading && !profile) navigate("/login");
   }, [loading, profile, navigate]);
@@ -55,6 +83,17 @@ export default function PerguntaPage() {
           if (q?.my_answer || q?.creator_id === profile.id) {
             const answers = await getQuestionAnswers(id);
             setAllAnswers(answers);
+          }
+          // power-ups: inventário + lista de alvos (só importa em perguntas ativas)
+          if (q && q.status !== "closed") {
+            const [inv, ppl] = await Promise.all([
+              getPowerupInventory(),
+              getAdultProfiles(),
+            ]);
+            setInventory(
+              Object.fromEntries(inv.map((i) => [i.powerup_key, i.qty]))
+            );
+            setAdults(ppl);
           }
           setFetching(false);
         });
@@ -90,26 +129,89 @@ export default function PerguntaPage() {
 
   async function handleSubmit() {
     if (!question) return;
+    // Se a opção escolhida for a decoy da sabotagem, manda como sabotage_option_id
+    const picked = question.options?.find((o) => o.id === selectedOptionId);
+    const isDecoyPick = !!picked?.is_decoy;
     setSubmitting(true);
     const res = await submitAnswer({
       question_id: question.id,
-      selected_option_id: selectedOptionId ?? undefined,
+      selected_option_id: isDecoyPick ? undefined : selectedOptionId ?? undefined,
+      sabotage_option_id: isDecoyPick ? selectedOptionId ?? undefined : undefined,
       subject_guess_id: selectedSubjectId ?? undefined,
+      use_second_chance: useSecondChance && !secondChanceUsed,
+      use_double_or_nothing: useDoubleOrNothing,
     });
     setSubmitting(false);
-    if (res) {
-      setResult(res);
-      if (res.achievements?.length) setNewAchievements(res.achievements);
-      // refresh question to get my_answer and fetch all answers
-      if (profile) {
-        const [updated, answers] = await Promise.all([
-          getQuestion(question.id, profile.id),
-          getQuestionAnswers(question.id),
-        ]);
-        if (updated) setQuestion(updated);
-        setAllAnswers(answers);
-      }
+    if (!res) return;
+
+    // Segunda Chance: tentativa errada descartada → responde de novo
+    if (res.retry_granted) {
+      setSecondChanceUsed(true);
+      setUseSecondChance(false);
+      setSelectedOptionId(null);
+      setSelectedSubjectId(null);
+      setInventory((inv) => ({
+        ...inv,
+        second_chance: Math.max(0, (inv.second_chance ?? 1) - 1),
+      }));
+      setPowerupMsg("Errou! 🔁 A tentativa foi descartada — escolha de novo.");
+      return;
     }
+
+    setResult(res);
+    if (res.achievements?.length) setNewAchievements(res.achievements);
+    if (profile) {
+      const [updated, answers] = await Promise.all([
+        getQuestion(question.id, profile.id),
+        getQuestionAnswers(question.id),
+      ]);
+      if (updated) setQuestion(updated);
+      setAllAnswers(answers);
+    }
+  }
+
+  async function handleEliminate() {
+    if (!question) return;
+    setPowerupBusy(true);
+    const res = await useEliminateOption(question.id);
+    setPowerupBusy(false);
+    if (res.error) {
+      setPowerupMsg(res.error);
+      return;
+    }
+    if (res.option_id) {
+      setEliminatedOptionId(res.option_id);
+      if (selectedOptionId === res.option_id) setSelectedOptionId(null);
+      setInventory((inv) => ({
+        ...inv,
+        eliminate: Math.max(0, (inv.eliminate ?? 1) - 1),
+      }));
+      setPowerupMsg("✂️ Uma alternativa errada foi removida.");
+    }
+  }
+
+  async function handleSabotage() {
+    if (!question || !sabotageTarget || !sabotageText.trim()) return;
+    setSabotageBusy(true);
+    setSabotageError(null);
+    const res = await deploySabotage({
+      question_id: question.id,
+      target_user_id: sabotageTarget,
+      decoy_text: sabotageText.trim(),
+    });
+    setSabotageBusy(false);
+    if (res.error) {
+      setSabotageError(res.error);
+      return;
+    }
+    setInventory((inv) => ({
+      ...inv,
+      sabotage: Math.max(0, (inv.sabotage ?? 1) - 1),
+    }));
+    setSabotageOpen(false);
+    setSabotageTarget(null);
+    setSabotageText("");
+    setPowerupMsg("😈 Sabotagem plantada! Só o alvo vai ver a 5ª alternativa.");
   }
 
   async function handleDelete() {
@@ -254,7 +356,7 @@ export default function PerguntaPage() {
           {/* multiple choice options */}
           {!isCreator && question.type === "multiple_choice" && question.options && (
             <div className="space-y-2">
-              {question.options.map((opt, i) => {
+              {question.options.filter((o) => o.id !== eliminatedOptionId).map((opt, i) => {
                 const isSelected = displaySelectedOptionId === opt.id;
                 const isCorrectOpt = showReveal && opt.is_correct;
                 const isWrongSelected =
@@ -411,6 +513,81 @@ export default function PerguntaPage() {
             </section>
           )}
 
+          {/* power-ups (loja) */}
+          {!isSettled && (() => {
+            const canAnswer = !isCreator && !alreadyAnswered && !result;
+            const isMC = question.type === "multiple_choice";
+            const showEliminate =
+              canAnswer && isMC && (inventory.eliminate ?? 0) > 0 && !eliminatedOptionId;
+            const showSecondChance =
+              canAnswer && (inventory.second_chance ?? 0) > 0 && !secondChanceUsed;
+            const showDouble =
+              canAnswer && (inventory.double_or_nothing ?? 0) > 0;
+            const showSabotage = isMC && (inventory.sabotage ?? 0) > 0;
+            if (!showEliminate && !showSecondChance && !showDouble && !showSabotage && !powerupMsg)
+              return null;
+
+            return (
+              <div className="space-y-2.5 rounded-2xl border border-purple/20 bg-purple/5 px-4 py-3.5">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-purple">
+                  Power-ups
+                </p>
+                {powerupMsg && (
+                  <p className="text-xs text-muted">{powerupMsg}</p>
+                )}
+                <div className="flex flex-wrap gap-2">
+                  {showEliminate && (
+                    <button
+                      onClick={handleEliminate}
+                      disabled={powerupBusy}
+                      className="text-xs font-semibold px-3 py-2 rounded-xl border border-border bg-surface hover:border-purple/40 transition-colors disabled:opacity-50"
+                    >
+                      ✂️ Eliminar alternativa ({inventory.eliminate})
+                    </button>
+                  )}
+                  {showSecondChance && (
+                    <button
+                      onClick={() => setUseSecondChance((v) => !v)}
+                      className={`text-xs font-semibold px-3 py-2 rounded-xl border transition-colors ${
+                        useSecondChance
+                          ? "border-purple bg-purple/15 text-purple"
+                          : "border-border bg-surface hover:border-purple/40"
+                      }`}
+                    >
+                      🔁 Segunda chance ({inventory.second_chance})
+                    </button>
+                  )}
+                  {showDouble && (
+                    <button
+                      onClick={() => setUseDoubleOrNothing((v) => !v)}
+                      className={`text-xs font-semibold px-3 py-2 rounded-xl border transition-colors ${
+                        useDoubleOrNothing
+                          ? "border-purple bg-purple/15 text-purple"
+                          : "border-border bg-surface hover:border-purple/40"
+                      }`}
+                    >
+                      🎲 Dobro ou nada ({inventory.double_or_nothing})
+                    </button>
+                  )}
+                  {showSabotage && (
+                    <button
+                      onClick={() => { setSabotageError(null); setSabotageOpen(true); }}
+                      className="text-xs font-semibold px-3 py-2 rounded-xl border border-border bg-surface hover:border-purple/40 transition-colors"
+                    >
+                      😈 Sabotar alguém ({inventory.sabotage})
+                    </button>
+                  )}
+                </div>
+                {(useSecondChance || useDoubleOrNothing) && (
+                  <p className="text-[11px] text-muted leading-snug">
+                    {useSecondChance && "🔁 Se errar, ganha uma nova tentativa. "}
+                    {useDoubleOrNothing && "🎲 Acertou: ganha nenecoins. Errou: perde o token."}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+
           {/* action buttons */}
           {!isCreator && !alreadyAnswered && !result && (
             <Button
@@ -455,6 +632,101 @@ export default function PerguntaPage() {
           )}
         </div>
       </main>
+
+      <AnimatePresence>
+        {sabotageOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/60 px-4 py-6"
+            onClick={() => setSabotageOpen(false)}
+          >
+            <motion.div
+              initial={{ y: 30, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 30, opacity: 0 }}
+              onClick={(e) => e.stopPropagation()}
+              className="w-full max-w-md bg-surface border border-border rounded-3xl p-6 space-y-4"
+            >
+              <div>
+                <h3 className="text-lg font-bold">😈 Sabotar alguém</h3>
+                <p className="text-xs text-muted mt-1">
+                  Plante uma 5ª alternativa falsa, escrita por você. Só o alvo a
+                  verá — e só se ele ainda não respondeu.
+                </p>
+              </div>
+
+              <div>
+                <p className="text-xs font-bold text-muted uppercase tracking-wider mb-2">
+                  Alvo
+                </p>
+                <div className="grid grid-cols-4 gap-2">
+                  {adults
+                    .filter(
+                      (a) => a.id !== profile.id && a.id !== question.creator_id
+                    )
+                    .map((a) => {
+                      const selected = sabotageTarget === a.id;
+                      return (
+                        <button
+                          key={a.id}
+                          onClick={() => setSabotageTarget(a.id)}
+                          className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-colors ${
+                            selected
+                              ? "border-purple bg-purple/10"
+                              : "border-border hover:border-purple/40"
+                          }`}
+                        >
+                          <Avatar
+                            spriteUrl={a.avatar_url}
+                            nickname={a.nickname}
+                            size={40}
+                          />
+                          <span className="text-[11px]">{a.nickname}</span>
+                        </button>
+                      );
+                    })}
+                </div>
+              </div>
+
+              <div>
+                <p className="text-xs font-bold text-muted uppercase tracking-wider mb-2">
+                  Alternativa falsa
+                </p>
+                <textarea
+                  value={sabotageText}
+                  onChange={(e) => setSabotageText(e.target.value.slice(0, 120))}
+                  placeholder="Ex: O Joca de madrugada 🤫"
+                  rows={2}
+                  className="w-full rounded-xl border border-border bg-surface-light px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-purple/50"
+                />
+              </div>
+
+              {sabotageError && (
+                <p className="text-xs text-red-400">{sabotageError}</p>
+              )}
+
+              <div className="flex gap-2">
+                <Button
+                  variant="ghost"
+                  onClick={() => setSabotageOpen(false)}
+                  className="flex-1"
+                >
+                  Cancelar
+                </Button>
+                <Button
+                  onClick={handleSabotage}
+                  disabled={!sabotageTarget || !sabotageText.trim() || sabotageBusy}
+                  className="flex-1"
+                >
+                  {sabotageBusy ? "..." : "Plantar 😈"}
+                </Button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

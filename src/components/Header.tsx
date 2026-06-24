@@ -10,6 +10,14 @@ export function Header() {
       </Link>
       <div className="flex items-center gap-2">
         <Link
+          to="/loja"
+          className="h-9 flex items-center gap-1.5 px-3 rounded-full border border-purple/30 text-sm font-semibold text-purple hover:bg-purple/10 transition-colors"
+          aria-label="Loja"
+        >
+          <span>&#128722;</span>
+          <span className="text-xs">Loja</span>
+        </Link>
+        <Link
           to="/copa"
           className="h-9 flex items-center gap-1.5 px-3 rounded-full border border-green/30 text-sm font-semibold text-green hover:bg-green/10 transition-colors"
           aria-label="Copa 2026"
