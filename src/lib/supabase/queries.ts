@@ -332,7 +332,7 @@ export async function submitAnswer(params: {
   selected_option_id?: string;
   subject_guess_id?: string;
   use_second_chance?: boolean;
-  use_double_or_nothing?: boolean;
+  coins_wagered?: number;
   sabotage_option_id?: string;
 }): Promise<AnswerResult | null> {
   const { data, error } = await getSupabase().rpc("submit_answer", {
@@ -340,7 +340,7 @@ export async function submitAnswer(params: {
     p_selected_option_id: params.selected_option_id ?? null,
     p_subject_guess_id: params.subject_guess_id ?? null,
     p_use_second_chance: params.use_second_chance ?? false,
-    p_use_double_or_nothing: params.use_double_or_nothing ?? false,
+    p_coins_wagered: params.coins_wagered ?? 0,
     p_sabotage_option_id: params.sabotage_option_id ?? null,
   });
 

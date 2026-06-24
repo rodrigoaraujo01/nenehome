@@ -18,9 +18,13 @@ import {
   useEliminateOption,
   deploySabotage,
   getAdultProfiles,
+  getNenecoinBalance,
 } from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
-import type { DbQuestion, AnswerResult, UnlockedAchievement, QuestionAnswer } from "@/lib/types";
+import type { DbQuestion, AnswerResult, UnlockedAchievement, QuestionAnswer, NenecoinBalance } from "@/lib/types";
+
+// multiplicador da aposta de coins por dificuldade (espelha o settle no SQL)
+const BET_MULT: Record<string, number> = { easy: 1.5, medium: 2, hard: 3 };
 
 const OPTION_LABELS = ["A", "B", "C", "D", "E"];
 
@@ -55,7 +59,6 @@ export default function PerguntaPage() {
   const [eliminatedOptionId, setEliminatedOptionId] = useState<string | null>(null);
   const [useSecondChance, setUseSecondChance] = useState(false);
   const [secondChanceUsed, setSecondChanceUsed] = useState(false);
-  const [useDoubleOrNothing, setUseDoubleOrNothing] = useState(false);
   const [powerupMsg, setPowerupMsg] = useState<string | null>(null);
   const [powerupBusy, setPowerupBusy] = useState(false);
   const [sabotageOpen, setSabotageOpen] = useState(false);
@@ -66,6 +69,10 @@ export default function PerguntaPage() {
   const [adults, setAdults] = useState<
     { id: string; nickname: string; avatar_url: string | null }[]
   >([]);
+  // aposta de coins na pergunta (estilo bolão)
+  const [balance, setBalance] = useState<NenecoinBalance | null>(null);
+  const [wager, setWager] = useState(0);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !profile) navigate("/login");
@@ -84,16 +91,18 @@ export default function PerguntaPage() {
             const answers = await getQuestionAnswers(id);
             setAllAnswers(answers);
           }
-          // power-ups: inventário + lista de alvos (só importa em perguntas ativas)
+          // power-ups + saldo: só importa em perguntas ativas
           if (q && q.status !== "closed") {
-            const [inv, ppl] = await Promise.all([
+            const [inv, ppl, bal] = await Promise.all([
               getPowerupInventory(),
               getAdultProfiles(),
+              getNenecoinBalance(),
             ]);
             setInventory(
               Object.fromEntries(inv.map((i) => [i.powerup_key, i.qty]))
             );
             setAdults(ppl);
+            setBalance(bal);
           }
           setFetching(false);
         });
@@ -133,16 +142,22 @@ export default function PerguntaPage() {
     const picked = question.options?.find((o) => o.id === selectedOptionId);
     const isDecoyPick = !!picked?.is_decoy;
     setSubmitting(true);
+    setSubmitError(null);
     const res = await submitAnswer({
       question_id: question.id,
       selected_option_id: isDecoyPick ? undefined : selectedOptionId ?? undefined,
       sabotage_option_id: isDecoyPick ? selectedOptionId ?? undefined : undefined,
       subject_guess_id: selectedSubjectId ?? undefined,
       use_second_chance: useSecondChance && !secondChanceUsed,
-      use_double_or_nothing: useDoubleOrNothing,
+      coins_wagered: wager,
     });
     setSubmitting(false);
     if (!res) return;
+
+    if (res.error) {
+      setSubmitError(res.error);
+      return;
+    }
 
     // Segunda Chance: tentativa errada descartada → responde de novo
     if (res.retry_granted) {
@@ -319,6 +334,26 @@ export default function PerguntaPage() {
                 <p className="text-sm text-muted mt-1">
                   🕒 Os pontos saem quando todos responderem — quanto mais difícil
                   a pergunta, mais vale.
+                </p>
+              )}
+              {(question.my_answer?.coins_wagered ?? 0) > 0 && (
+                <p className="text-sm mt-1">
+                  {isSettled ? (
+                    (question.my_answer?.coins_won ?? 0) > 0 ? (
+                      <span className="text-yellow-400">
+                        🪙 Apostou {question.my_answer?.coins_wagered} · ganhou{" "}
+                        {question.my_answer?.coins_won}
+                      </span>
+                    ) : (
+                      <span className="text-muted">
+                        🪙 Apostou {question.my_answer?.coins_wagered} · perdeu a aposta
+                      </span>
+                    )
+                  ) : (
+                    <span className="text-muted">
+                      🪙 Apostou {question.my_answer?.coins_wagered} — paga no fechamento
+                    </span>
+                  )}
                 </p>
               )}
               {question.type === "story" && correctSubject && (
@@ -521,10 +556,8 @@ export default function PerguntaPage() {
               canAnswer && isMC && (inventory.eliminate ?? 0) > 0 && !eliminatedOptionId;
             const showSecondChance =
               canAnswer && (inventory.second_chance ?? 0) > 0 && !secondChanceUsed;
-            const showDouble =
-              canAnswer && (inventory.double_or_nothing ?? 0) > 0;
             const showSabotage = isMC && (inventory.sabotage ?? 0) > 0;
-            if (!showEliminate && !showSecondChance && !showDouble && !showSabotage && !powerupMsg)
+            if (!showEliminate && !showSecondChance && !showSabotage && !powerupMsg)
               return null;
 
             return (
@@ -557,18 +590,6 @@ export default function PerguntaPage() {
                       🔁 Segunda chance ({inventory.second_chance})
                     </button>
                   )}
-                  {showDouble && (
-                    <button
-                      onClick={() => setUseDoubleOrNothing((v) => !v)}
-                      className={`text-xs font-semibold px-3 py-2 rounded-xl border transition-colors ${
-                        useDoubleOrNothing
-                          ? "border-purple bg-purple/15 text-purple"
-                          : "border-border bg-surface hover:border-purple/40"
-                      }`}
-                    >
-                      🎲 Dobro ou nada ({inventory.double_or_nothing})
-                    </button>
-                  )}
                   {showSabotage && (
                     <button
                       onClick={() => { setSabotageError(null); setSabotageOpen(true); }}
@@ -578,15 +599,56 @@ export default function PerguntaPage() {
                     </button>
                   )}
                 </div>
-                {(useSecondChance || useDoubleOrNothing) && (
+                {useSecondChance && (
                   <p className="text-[11px] text-muted leading-snug">
-                    {useSecondChance && "🔁 Se errar, ganha uma nova tentativa. "}
-                    {useDoubleOrNothing && "🎲 Acertou: ganha nenecoins. Errou: perde o token."}
+                    🔁 Se errar, ganha uma nova tentativa.
                   </p>
                 )}
               </div>
             );
           })()}
+
+          {/* aposta de coins (estilo bolão) */}
+          {!isCreator && !alreadyAnswered && !result && balance && (
+            <div className="space-y-2.5 rounded-2xl border border-yellow/20 bg-yellow/5 px-4 py-3.5">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-yellow-400">
+                  Apostar nenecoins (opcional)
+                </p>
+                <span className="text-xs text-muted">Saldo: {balance.nenecoin_balance}</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setWager((c) => Math.max(0, c - 5))}
+                  className="w-9 h-9 rounded-full border border-border text-muted hover:border-yellow/40 text-lg font-bold"
+                >−</button>
+                <input
+                  type="number"
+                  min={0}
+                  max={balance.nenecoin_balance}
+                  value={wager}
+                  onChange={(e) =>
+                    setWager(Math.max(0, Math.min(balance.nenecoin_balance, parseInt(e.target.value) || 0)))
+                  }
+                  className="flex-1 text-center bg-surface border border-border rounded-xl px-4 py-2 text-lg font-bold focus:outline-none focus:border-yellow/50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
+                <button
+                  type="button"
+                  onClick={() => setWager((c) => Math.min(balance.nenecoin_balance, c + 5))}
+                  className="w-9 h-9 rounded-full border border-border text-muted hover:border-yellow/40 text-lg font-bold"
+                >+</button>
+              </div>
+              <p className="text-[11px] text-muted leading-snug">
+                Acertou: ganha conforme a dificuldade — Fácil 1.5× · Médio 2× · Difícil 3×.
+                Errou: perde a aposta. (Impossível não paga.)
+              </p>
+            </div>
+          )}
+
+          {submitError && (
+            <p className="text-sm text-red-400 text-center">{submitError}</p>
+          )}
 
           {/* action buttons */}
           {!isCreator && !alreadyAnswered && !result && (
@@ -595,7 +657,11 @@ export default function PerguntaPage() {
               disabled={!canSubmit || submitting}
               className="w-full"
             >
-              {submitting ? "Enviando..." : "Confirmar resposta"}
+              {submitting
+                ? "Enviando..."
+                : wager > 0
+                ? `Confirmar e apostar ${wager} 🪙`
+                : "Confirmar resposta"}
             </Button>
           )}
 

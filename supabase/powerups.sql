@@ -14,7 +14,7 @@ alter table nenecoins_ledger add constraint nenecoins_ledger_tx_type_check
     'gift_sent', 'gift_received',
     'fire_conversion_out', 'fire_conversion_in',
     'wc_bet_placed', 'wc_bet_won', 'wc_bet_refund', 'wc_bet_clawback',
-    'powerup_purchase', 'powerup_payout'
+    'powerup_purchase', 'question_bet_placed', 'question_bet_won'
   ));
 
 -- ─────────────────────────────────────────────
@@ -38,12 +38,14 @@ create policy "powerups: authenticated can read"
 insert into powerups (key, title, description, price, icon, sort) values
   ('eliminate',        'Eliminar Alternativa', 'Remove uma alternativa errada de uma pergunta de múltipla escolha antes de responder. 1 por pergunta.', 30, '✂️', 1),
   ('second_chance',    'Segunda Chance',       'Errou? Descarta a tentativa e deixa você responder de novo, uma vez.',                                 40, '🔁', 2),
-  ('double_or_nothing','Dobro ou Nada',        'Aposte: se sua resposta estiver certa, ganha nenecoins; se errar, perde o token.',                    25, '🎲', 3),
-  ('sabotage',         'Sabotagem',            'Injeta uma 5ª alternativa falsa (escrita por você) numa pergunta, só para um alvo que ainda não respondeu.', 80, '😈', 4),
-  ('wc_reveal',        'Revelar Distribuição', 'Revela a distribuição anônima dos palpites do grupo num jogo da Copa antes do fechamento.',            35, '🔭', 5)
+  ('sabotage',         'Sabotagem',            'Injeta uma 5ª alternativa falsa (escrita por você) numa pergunta, só para um alvo que ainda não respondeu.', 30, '😈', 4),
+  ('wc_reveal',        'Revelar Distribuição', 'Revela a distribuição anônima dos palpites do grupo num jogo da Copa antes do fechamento.',            30, '🔭', 5)
 on conflict (key) do update set
   title = excluded.title, description = excluded.description,
   price = excluded.price, icon = excluded.icon, sort = excluded.sort;
+
+-- Dobro ou Nada foi removido em favor da aposta de coins nativa na pergunta.
+update powerups set active = false where key = 'double_or_nothing';
 
 -- ─────────────────────────────────────────────
 -- powerup_ledger — inventory as a derived ledger (mirrors nenecoins)
@@ -67,13 +69,12 @@ create policy "powerup_ledger: owner reads own"
 -- ─────────────────────────────────────────────
 -- question_assists — records power-ups used on a question by a user.
 -- kind in eliminate/second_chance counts as "assisted" (excluded from difficulty).
--- double_or_nothing is a coin bet, resolved at settle (not assisted).
 -- ─────────────────────────────────────────────
 create table if not exists question_assists (
   id          uuid primary key default gen_random_uuid(),
   question_id uuid not null references questions(id) on delete cascade,
   user_id     uuid not null references profiles(id),
-  kind        text not null check (kind in ('eliminate', 'second_chance', 'double_or_nothing')),
+  kind        text not null check (kind in ('eliminate', 'second_chance')),
   meta        jsonb,
   created_at  timestamptz not null default now(),
   unique (question_id, user_id, kind)
@@ -126,6 +127,13 @@ create policy "wc_distribution_reveals: owner reads own"
 -- so they don't distort the difficulty %-correct.
 -- ─────────────────────────────────────────────
 alter table answers add column if not exists assisted boolean not null default false;
+
+-- ─────────────────────────────────────────────
+-- Aposta de coins na pergunta (estilo bolão, sem power-up).
+-- Stake debitado no submit; pago no settle por multiplicador de dificuldade.
+-- ─────────────────────────────────────────────
+alter table answers add column if not exists coins_wagered integer not null default 0;
+alter table answers add column if not exists coins_won     integer not null default 0;
 
 -- ─────────────────────────────────────────────
 -- Helper: current inventory quantity of a power-up for a user
@@ -440,7 +448,7 @@ create or replace function submit_answer(
   p_selected_option_id   uuid    default null,
   p_subject_guess_id     text    default null,
   p_use_second_chance    boolean default false,
-  p_use_double_or_nothing boolean default false,
+  p_coins_wagered        integer default 0,
   p_sabotage_option_id   uuid    default null
 )
 returns json
@@ -453,6 +461,7 @@ declare
   v_is_correct   boolean := false;
   v_is_decoy     boolean := false;
   v_assisted     boolean := false;
+  v_balance      integer;
   v_answer_id    uuid;
   v_count        int;
   v_answer_count int;
@@ -506,6 +515,18 @@ begin
     return json_build_object('is_correct', false, 'retry_granted', true, 'pending', true, 'achievements', '[]'::json);
   end if;
 
+  -- Aposta de coins na pergunta (estilo bolão): valida saldo antes de persistir
+  if p_coins_wagered < 0 then
+    return json_build_object('error', 'Aposta inválida');
+  end if;
+  if p_coins_wagered > 0 then
+    select coalesce(sum(amount), 0) into v_balance
+    from nenecoins_ledger where user_id = v_user_id and coin_type = 'nenecoin';
+    if v_balance < p_coins_wagered then
+      return json_build_object('error', 'Nenecoins insuficientes pra essa aposta');
+    end if;
+  end if;
+
   -- assistida (p/ excluir do cálculo de dificuldade): usou eliminate/second_chance
   v_assisted := exists (
     select 1 from question_assists
@@ -513,10 +534,10 @@ begin
       and kind in ('eliminate', 'second_chance')
   );
 
-  insert into answers (question_id, user_id, selected_option_id, subject_guess_id, is_correct, assisted)
+  insert into answers (question_id, user_id, selected_option_id, subject_guess_id, is_correct, assisted, coins_wagered)
   values (p_question_id, v_user_id,
           case when v_is_decoy then null else p_selected_option_id end,
-          p_subject_guess_id, v_is_correct, v_assisted)
+          p_subject_guess_id, v_is_correct, v_assisted, p_coins_wagered)
   returning id into v_answer_id;
 
   if v_is_decoy then
@@ -524,18 +545,14 @@ begin
     where id = p_sabotage_option_id and target_user_id = v_user_id;
   end if;
 
-  -- Dobro ou Nada: aposta de coins, resolvida no settle conforme acerto
-  if p_use_double_or_nothing
-     and powerup_qty(v_user_id, 'double_or_nothing') >= 1
-     and not exists (
-       select 1 from question_assists
-       where question_id = p_question_id and user_id = v_user_id and kind = 'double_or_nothing'
-     )
-  then
-    insert into question_assists (question_id, user_id, kind)
-    values (p_question_id, v_user_id, 'double_or_nothing');
-    insert into powerup_ledger (user_id, powerup_key, delta, reason, ref_id)
-    values (v_user_id, 'double_or_nothing', -1, 'use', p_question_id);
+  -- debita a aposta de coins (paga no settle conforme a dificuldade)
+  if p_coins_wagered > 0 then
+    insert into nenecoins_ledger (user_id, amount, coin_type, tx_type, ref_id, note)
+    values (v_user_id, -p_coins_wagered, 'nenecoin', 'question_bet_placed', v_answer_id,
+      'Aposta na pergunta');
+    insert into nenecoins_state (user_id, last_activity_at)
+    values (v_user_id, now())
+    on conflict (user_id) do update set last_activity_at = now();
   end if;
 
   -- conquistas de contagem (pontos de acerto ficam para o settle)
@@ -567,7 +584,7 @@ $$;
 
 -- ═════════════════════════════════════════════
 -- settle_question (redefinido) — dificuldade pelo subconjunto NÃO assistido;
--- paga Dobro ou Nada no acerto.
+-- paga as apostas de coins por multiplicador de dificuldade.
 -- ═════════════════════════════════════════════
 create or replace function settle_question(p_question_id uuid)
 returns json
@@ -586,7 +603,9 @@ declare
   v_ratio        numeric;
   v_difficulty   text;
   v_per_pts      int := 0;
-  v_don_payout   constant int := 60;  -- Dobro ou Nada (stake 25 → payout 60)
+  -- multiplicador da aposta de coins por dificuldade (acerto): impossível perde
+  v_bet_mult     numeric := 0;
+  v_payout       int;
   v_ans          record;
   v_affected     uuid[];
   v_uid          uuid;
@@ -619,15 +638,15 @@ begin
 
   if v_diff_total = 0 or v_diff_correct = 0 then
     v_difficulty := 'impossible';
-    v_per_pts := 0;
+    v_per_pts := 0;   v_bet_mult := 0;
   else
     v_ratio := v_diff_correct::numeric / v_diff_total::numeric;
     if v_ratio <= 1.0/3.0 then
-      v_difficulty := 'hard';   v_per_pts := 20;
+      v_difficulty := 'hard';   v_per_pts := 20; v_bet_mult := 3;
     elsif v_ratio <= 2.0/3.0 then
-      v_difficulty := 'medium'; v_per_pts := 12;
+      v_difficulty := 'medium'; v_per_pts := 12; v_bet_mult := 2;
     else
-      v_difficulty := 'easy';   v_per_pts := 5;
+      v_difficulty := 'easy';   v_per_pts := 5;  v_bet_mult := 1.5;
     end if;
   end if;
 
@@ -652,16 +671,20 @@ begin
     values (v_question.creator_id, 10, 'question_hard_bonus', p_question_id);
   end if;
 
-  -- Dobro ou Nada: paga coins a quem apostou e acertou
-  for v_ans in
-    select qa.user_id from question_assists qa
-    join answers a on a.question_id = qa.question_id and a.user_id = qa.user_id
-    where qa.question_id = p_question_id and qa.kind = 'double_or_nothing' and a.is_correct = true
-  loop
-    insert into nenecoins_ledger (user_id, amount, coin_type, tx_type, ref_id, note)
-    values (v_ans.user_id, v_don_payout, 'nenecoin', 'powerup_payout', p_question_id,
-      'Dobro ou Nada: acertou!');
-  end loop;
+  -- Aposta de coins: paga quem apostou e acertou (multiplicador por dificuldade).
+  -- Quem errou já perdeu o stake no submit. Impossível (mult 0) não paga.
+  if v_bet_mult > 0 then
+    for v_ans in
+      select id, user_id, coins_wagered from answers
+      where question_id = p_question_id and is_correct = true and coins_wagered > 0
+    loop
+      v_payout := floor(v_ans.coins_wagered * v_bet_mult)::int;
+      update answers set coins_won = v_payout where id = v_ans.id;
+      insert into nenecoins_ledger (user_id, amount, coin_type, tx_type, ref_id, note)
+      values (v_ans.user_id, v_payout, 'nenecoin', 'question_bet_won', v_ans.id,
+        'Ganhou aposta na pergunta (' || v_difficulty || ')');
+    end loop;
+  end if;
 
   -- re-checa milestones
   select array_agg(distinct uid) into v_affected from (

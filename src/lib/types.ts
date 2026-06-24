@@ -47,6 +47,8 @@ export interface DbAnswer {
   subject_guess_id: string | null;
   is_correct: boolean;
   assisted?: boolean;
+  coins_wagered?: number;
+  coins_won?: number;
   created_at: string;
 }
 
@@ -97,6 +99,7 @@ export interface AnswerResult {
   pending?: boolean;
   // Segunda Chance: tentativa errada descartada, pode responder de novo
   retry_granted?: boolean;
+  error?: string;
   achievements?: UnlockedAchievement[];
 }
 
