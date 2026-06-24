@@ -33,6 +33,8 @@ import type {
   SabotageResult,
   WcRevealResult,
   WcDistribution,
+  SabotageRevenge,
+  MySabotage,
 } from "@/lib/types";
 import { MEMBERS } from "@/lib/constants";
 
@@ -1234,6 +1236,22 @@ export async function deploySabotage(params: {
   });
   if (error) return { error: error.message };
   return data as SabotageResult;
+}
+
+export async function getSabotageRevenge(): Promise<SabotageRevenge> {
+  const { data, error } = await getSupabase().rpc("get_sabotage_revenge");
+  if (error || !data) return { credits: 0, saboteurs: [] };
+  return data as SabotageRevenge;
+}
+
+export async function getMySabotage(
+  questionId: string,
+): Promise<MySabotage | null> {
+  const { data, error } = await getSupabase().rpc("get_my_sabotage", {
+    p_question_id: questionId,
+  });
+  if (error || !data) return null;
+  return data as MySabotage;
 }
 
 export async function revealWcDistribution(

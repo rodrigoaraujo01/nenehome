@@ -10,6 +10,7 @@ import {
   getPowerupInventory,
   buyPowerup,
   getNenecoinBalance,
+  getSabotageRevenge,
 } from "@/lib/supabase/queries";
 import type { Powerup, NenecoinBalance } from "@/lib/types";
 
@@ -20,6 +21,7 @@ export default function LojaPage() {
   const [powerups, setPowerups] = useState<Powerup[]>([]);
   const [inventory, setInventory] = useState<Record<string, number>>({});
   const [balance, setBalance] = useState<NenecoinBalance | null>(null);
+  const [revengeCredits, setRevengeCredits] = useState(0);
   const [qty, setQty] = useState<Record<string, number>>({});
   const [busy, setBusy] = useState<string | null>(null);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
@@ -30,14 +32,16 @@ export default function LojaPage() {
   }, [loading, profile, navigate]);
 
   async function refresh() {
-    const [pw, inv, bal] = await Promise.all([
+    const [pw, inv, bal, rev] = await Promise.all([
       getPowerups(),
       getPowerupInventory(),
       getNenecoinBalance(),
+      getSabotageRevenge(),
     ]);
     setPowerups(pw);
     setInventory(Object.fromEntries(inv.map((i) => [i.powerup_key, i.qty])));
     setBalance(bal);
+    setRevengeCredits(rev.credits);
     setFetching(false);
   }
 
@@ -103,7 +107,10 @@ export default function LojaPage() {
           {powerups.map((pw) => {
             const owned = inventory[pw.key] ?? 0;
             const n = qty[pw.key] ?? 1;
-            const cost = pw.price * n;
+            const discUnits =
+              pw.key === "sabotage" ? Math.min(n, revengeCredits) : 0;
+            const cost =
+              pw.price * (n - discUnits) + Math.floor(pw.price / 2) * discUnits;
             const tooPoor = cost > nene;
             return (
               <div
@@ -113,15 +120,25 @@ export default function LojaPage() {
                 <div className="flex items-start gap-3">
                   <div className="text-3xl leading-none">{pw.icon}</div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <p className="font-semibold">{pw.title}</p>
                       {owned > 0 && (
                         <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-green/15 text-green">
                           {owned} no inventário
                         </span>
                       )}
+                      {pw.key === "sabotage" && revengeCredits > 0 && (
+                        <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-accent/15 text-accent">
+                          ⚡ Revanche 50% ×{revengeCredits}
+                        </span>
+                      )}
                     </div>
                     <p className="text-xs text-muted mt-1 leading-snug">{pw.description}</p>
+                    {pw.key === "sabotage" && revengeCredits > 0 && (
+                      <p className="text-[11px] text-accent mt-1">
+                        Você foi sabotado — contra-golpe com 50% de desconto!
+                      </p>
+                    )}
                   </div>
                 </div>
 

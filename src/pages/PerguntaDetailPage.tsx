@@ -19,9 +19,10 @@ import {
   deploySabotage,
   getAdultProfiles,
   getNenecoinBalance,
+  getMySabotage,
 } from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
-import type { DbQuestion, AnswerResult, UnlockedAchievement, QuestionAnswer, NenecoinBalance } from "@/lib/types";
+import type { DbQuestion, AnswerResult, UnlockedAchievement, QuestionAnswer, NenecoinBalance, MySabotage } from "@/lib/types";
 
 // multiplicador da aposta de coins por dificuldade (espelha o settle no SQL)
 const BET_MULT: Record<string, number> = { easy: 1.5, medium: 2, hard: 3 };
@@ -73,6 +74,7 @@ export default function PerguntaPage() {
   const [balance, setBalance] = useState<NenecoinBalance | null>(null);
   const [wager, setWager] = useState(0);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [mySabotage, setMySabotage] = useState<MySabotage | null>(null);
 
   useEffect(() => {
     if (!loading && !profile) navigate("/login");
@@ -90,6 +92,10 @@ export default function PerguntaPage() {
           if (q?.my_answer || q?.creator_id === profile.id) {
             const answers = await getQuestionAnswers(id);
             setAllAnswers(answers);
+          }
+          // contra-golpe: se já respondi, vejo se fui sabotado (sem spoiler antes)
+          if (q?.my_answer) {
+            setMySabotage(await getMySabotage(id));
           }
           // power-ups + saldo: só importa em perguntas ativas
           if (q && q.status !== "closed") {
@@ -176,12 +182,14 @@ export default function PerguntaPage() {
     setResult(res);
     if (res.achievements?.length) setNewAchievements(res.achievements);
     if (profile) {
-      const [updated, answers] = await Promise.all([
+      const [updated, answers, sab] = await Promise.all([
         getQuestion(question.id, profile.id),
         getQuestionAnswers(question.id),
+        getMySabotage(question.id),
       ]);
       if (updated) setQuestion(updated);
       setAllAnswers(answers);
+      setMySabotage(sab);
     }
   }
 
@@ -368,6 +376,21 @@ export default function PerguntaPage() {
                   </span>
                 </div>
               )}
+            </div>
+          )}
+
+          {/* contra-golpe: fui sabotado nesta pergunta */}
+          {mySabotage && (
+            <div className="rounded-2xl px-5 py-4 border border-accent/30 bg-accent/10">
+              <p className="font-bold text-accent">
+                😈 {mySabotage.saboteur} te sabotou!
+              </p>
+              <p className="text-sm text-muted mt-1">
+                {mySabotage.hit
+                  ? "Você caiu na alternativa falsa. "
+                  : "Você escapou da alternativa falsa. "}
+                Revanche: compre uma <Link to="/loja" className="text-accent font-semibold">Sabotagem com 50% de desconto</Link>.
+              </p>
             </div>
           )}
 

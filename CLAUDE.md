@@ -135,7 +135,7 @@ Sink de nenecoins (motivado pelo acúmulo por causa do Bolão da Copa). Modelo *
 
 - **Eliminar Alternativa** (`use_eliminate_option`, 30) — remove 1 alternativa errada de uma MC; cap 1/pergunta; marca a resposta como `assisted`.
 - **Segunda Chance** (40) — ao confirmar, se errar, descarta a tentativa (não persiste, não liquida) e libera nova resposta; marca `assisted`. Implementado via flag em `submit_answer`.
-- **Sabotagem** (`deploy_sabotage`, 30) — injeta uma 5ª alternativa falsa (texto do saboteur) numa MC, só para um alvo que ainda não respondeu. Entregue via `get_question_sabotage` (não vaza que é falsa); ao escolhê-la conta como erro (`question_sabotages.hit`).
+- **Sabotagem** (`deploy_sabotage`, 30) — injeta uma 5ª alternativa falsa (texto do saboteur) numa MC, só para um alvo que ainda não respondeu. Entregue via `get_question_sabotage` (não vaza que é falsa); ao escolhê-la conta como erro (`question_sabotages.hit`). **Contra-golpe**: quem foi sabotado ganha 1 crédito de revanche (`sabotage_revenge`) que dá **50% de desconto** na compra de Sabotagem (aplicado automático em `buy_powerup`). O crédito é gerado só quando a vítima **responde** (em `submit_answer`) — antes disso revelaria o decoy. Banner pós-resposta via `get_my_sabotage`; saldo de revanche via `get_sabotage_revenge`.
 - **Revelar Distribuição** (`reveal_wc_distribution`, 30) — destrava a distribuição **anônima** dos palpites de um jogo da Copa antes do fechamento.
 
 ### Aposta de coins na pergunta (sem power-up)

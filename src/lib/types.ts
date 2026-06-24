@@ -124,8 +124,19 @@ export interface BuyPowerupResult {
   success?: boolean;
   key?: string;
   qty?: number;
+  discounted?: number;
   nenecoin_balance?: number;
   error?: string;
+}
+
+export interface SabotageRevenge {
+  credits: number;
+  saboteurs: string[];
+}
+
+export interface MySabotage {
+  saboteur: string;
+  hit: boolean;
 }
 
 export interface EliminateResult {

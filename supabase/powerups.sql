@@ -107,6 +107,26 @@ create policy "question_sabotages: saboteur reads own"
   on question_sabotages for select using (auth.uid() = saboteur_id);
 
 -- ─────────────────────────────────────────────
+-- sabotage_revenge — crédito de "contra-golpe": quem foi sabotado ganha o
+-- direito de comprar uma Sabotagem por metade do preço. O crédito só é gerado
+-- QUANDO a vítima responde a pergunta (em submit_answer) — antes disso revelaria
+-- que existe uma alternativa falsa. Cada sabotagem sofrida = 1 crédito.
+-- ─────────────────────────────────────────────
+create table if not exists sabotage_revenge (
+  id                 uuid primary key default gen_random_uuid(),
+  user_id            uuid not null references profiles(id),
+  source_sabotage_id uuid not null references question_sabotages(id) on delete cascade,
+  used               boolean not null default false,
+  created_at         timestamptz not null default now(),
+  unique (source_sabotage_id)
+);
+
+alter table sabotage_revenge enable row level security;
+drop policy if exists "sabotage_revenge: owner reads own" on sabotage_revenge;
+create policy "sabotage_revenge: owner reads own"
+  on sabotage_revenge for select using (auth.uid() = user_id);
+
+-- ─────────────────────────────────────────────
 -- wc_distribution_reveals — records that a user unlocked a match's distribution
 -- ─────────────────────────────────────────────
 create table if not exists wc_distribution_reveals (
@@ -175,11 +195,13 @@ language plpgsql
 security definer
 as $$
 declare
-  v_user_id uuid := auth.uid();
-  v_pw      powerups%rowtype;
-  v_cost    integer;
-  v_balance integer;
-  v_new_bal integer;
+  v_user_id   uuid := auth.uid();
+  v_pw        powerups%rowtype;
+  v_cost      integer;
+  v_balance   integer;
+  v_new_bal   integer;
+  v_credits   integer := 0;
+  v_disc      integer := 0;  -- unidades com 50% de desconto (contra-golpe)
 begin
   if p_qty is null or p_qty < 1 then
     return json_build_object('error', 'Quantidade inválida');
@@ -190,7 +212,16 @@ begin
     return json_build_object('error', 'Power-up indisponível');
   end if;
 
-  v_cost := v_pw.price * p_qty;
+  -- Contra-golpe: quem foi sabotado compra Sabotagem por metade do preço,
+  -- usando os créditos de revanche disponíveis (1 por sabotagem sofrida).
+  if p_key = 'sabotage' then
+    select count(*) into v_credits
+    from sabotage_revenge where user_id = v_user_id and used = false;
+    v_disc := least(p_qty, v_credits);
+  end if;
+
+  v_cost := v_pw.price * (p_qty - v_disc)
+          + floor(v_pw.price / 2.0)::int * v_disc;
 
   select coalesce(sum(amount), 0) into v_balance
   from nenecoins_ledger where user_id = v_user_id and coin_type = 'nenecoin';
@@ -201,10 +232,21 @@ begin
 
   insert into nenecoins_ledger (user_id, amount, coin_type, tx_type, note)
   values (v_user_id, -v_cost, 'nenecoin', 'powerup_purchase',
-    'Loja: ' || p_qty || '× ' || v_pw.title);
+    'Loja: ' || p_qty || '× ' || v_pw.title ||
+    case when v_disc > 0 then ' (' || v_disc || ' em revanche 50%)' else '' end);
 
   insert into powerup_ledger (user_id, powerup_key, delta, reason)
   values (v_user_id, p_key, p_qty, 'purchase');
+
+  -- consome os créditos de revanche usados
+  if v_disc > 0 then
+    update sabotage_revenge set used = true
+    where id in (
+      select id from sabotage_revenge
+      where user_id = v_user_id and used = false
+      order by created_at limit v_disc
+    );
+  end if;
 
   insert into nenecoins_state (user_id, last_activity_at)
   values (v_user_id, now())
@@ -217,6 +259,7 @@ begin
     'success', true,
     'key', p_key,
     'qty', powerup_qty(v_user_id, p_key),
+    'discounted', v_disc,
     'nenecoin_balance', v_new_bal
   );
 end;
@@ -355,6 +398,58 @@ begin
     return null;
   end if;
   return json_build_object('id', v_sab.id, 'text', v_sab.decoy_text);
+end;
+$$;
+
+-- ─────────────────────────────────────────────
+-- RPC: get_sabotage_revenge — créditos de contra-golpe disponíveis (50% off
+-- em Sabotagem) do usuário atual + quem o sabotou.
+-- ─────────────────────────────────────────────
+create or replace function get_sabotage_revenge()
+returns json
+language plpgsql
+security definer
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_count   integer;
+  v_names   json;
+begin
+  select count(*) into v_count
+  from sabotage_revenge where user_id = v_user_id and used = false;
+
+  select coalesce(json_agg(distinct pr.nickname), '[]'::json) into v_names
+  from sabotage_revenge sr
+  join question_sabotages qs on qs.id = sr.source_sabotage_id
+  join profiles pr on pr.id = qs.saboteur_id
+  where sr.user_id = v_user_id and sr.used = false;
+
+  return json_build_object('credits', v_count, 'saboteurs', v_names);
+end;
+$$;
+
+-- ─────────────────────────────────────────────
+-- RPC: get_my_sabotage — para o banner pós-resposta: se fui sabotado nesta
+-- pergunta E já respondi, revela quem foi (sem spoiler antes de responder).
+-- ─────────────────────────────────────────────
+create or replace function get_my_sabotage(p_question_id uuid)
+returns json
+language plpgsql
+security definer
+as $$
+declare
+  v_user_id uuid := auth.uid();
+  v_sab     question_sabotages%rowtype;
+  v_nick    text;
+begin
+  if not exists (select 1 from answers where question_id = p_question_id and user_id = v_user_id) then
+    return null;
+  end if;
+  select * into v_sab from question_sabotages
+  where question_id = p_question_id and target_user_id = v_user_id;
+  if not found then return null; end if;
+  select nickname into v_nick from profiles where id = v_sab.saboteur_id;
+  return json_build_object('saboteur', v_nick, 'hit', v_sab.hit);
 end;
 $$;
 
@@ -544,6 +639,14 @@ begin
     update question_sabotages set hit = true
     where id = p_sabotage_option_id and target_user_id = v_user_id;
   end if;
+
+  -- Contra-golpe: se havia sabotagem mirando este usuário nesta pergunta,
+  -- concede o crédito de revanche AGORA (já respondeu, sem spoiler do decoy).
+  insert into sabotage_revenge (user_id, source_sabotage_id)
+  select v_user_id, qs.id
+  from question_sabotages qs
+  where qs.question_id = p_question_id and qs.target_user_id = v_user_id
+  on conflict (source_sabotage_id) do nothing;
 
   -- debita a aposta de coins (paga no settle conforme a dificuldade)
   if p_coins_wagered > 0 then
