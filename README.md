@@ -45,3 +45,4 @@ O schema do Supabase está em `supabase/`:
 - `bets.sql` — bolões/apostas
 - `worldcup.sql` — bolão da Copa 2026
 - `question_comments.sql` — comentários privados entre quem respondeu uma pergunta
+- `family_only_impossible.sql` — classifica como impossíveis perguntas acertadas só pela família do criador

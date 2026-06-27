@@ -358,6 +358,10 @@ export default function PerguntaPage() {
     allAnswers.find((a) => a.user_id === profile.id)?.points_earned ?? 0;
   // acertei mas a pergunta ainda não foi liquidada → pontos pendentes
   const pointsPending = !!isCorrect && !isSettled;
+  const familyOnlyImpossible =
+    isSettled &&
+    question.difficulty === "impossible" &&
+    allAnswers.some((answer) => answer.is_correct);
 
   return (
     <>
@@ -422,6 +426,11 @@ export default function PerguntaPage() {
                   a pergunta, mais vale.
                 </p>
               )}
+              {isCorrect && familyOnlyImpossible && (
+                <p className="text-sm text-muted mt-1">
+                  Só a família do criador acertou, então esta pergunta não vale pontos.
+                </p>
+              )}
               {(question.my_answer?.coins_wagered ?? 0) > 0 && (
                 <p className="text-sm mt-1">
                   {isSettled ? (
@@ -478,7 +487,9 @@ export default function PerguntaPage() {
               <p className="text-sm text-muted">Você criou esta pergunta e não pode respondê-la.</p>
               {isSettled && question.difficulty === "impossible" && (
                 <p className="text-sm text-muted mt-2">
-                  💀 Ninguém acertou — o bônus de criação foi devolvido.
+                  {familyOnlyImpossible
+                    ? "💀 Só sua família acertou — a pergunta não vale pontos."
+                    : "💀 Ninguém acertou — o bônus de criação foi devolvido."}
                 </p>
               )}
               {isSettled && question.difficulty === "hard" && (

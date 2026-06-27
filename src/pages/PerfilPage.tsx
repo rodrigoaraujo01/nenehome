@@ -11,7 +11,7 @@ import { MEMBERS, COUPLES } from "@/lib/constants";
 import {
   getProfileStats,
   getUserAchievements,
-  getNenecoinBalance,
+  getPublicNenecoinBalance,
   giftNenecoins,
   getPointsLog,
   getNenecoinHistory,
@@ -207,17 +207,10 @@ export default function PerfilPage() {
         getUserAchievements(id).then(setAchievements);
         getPointsLog(id).then(setPointsLog);
         getNenecoinHistory(id).then(setCoinHistory);
+        getPublicNenecoinBalance(id).then(setBalance);
       }
     });
   }, [member]);
-
-  // Load own balance when viewing own profile
-  useEffect(() => {
-    if (!currentUser || !member) return;
-    if (currentUser.nickname.toLowerCase() === member.nickname.toLowerCase()) {
-      getNenecoinBalance().then(setBalance);
-    }
-  }, [currentUser, member]);
 
   if (!member) {
     return (
@@ -251,8 +244,7 @@ export default function PerfilPage() {
       setGiftMsg(`🎁 ${giftAmount} nenecoins enviadas para ${member!.nickname}!`);
       setGiftAmount(10);
       setGiftNote("");
-      const bal = await getNenecoinBalance();
-      if (bal) setBalance(bal);
+      setBalance(await getPublicNenecoinBalance(profileId));
       setTimeout(() => { setShowGift(false); setGiftMsg(null); }, 2000);
     }
   }
@@ -290,14 +282,14 @@ export default function PerfilPage() {
                 label="pontos"
                 icon="points"
               />
-              {isOwnProfile && balance !== null && (
+              {balance !== null && (
                 <CurrencyBadge
                   value={balance.nenecoin_balance}
                   label="nenecoins"
                   icon="nenecoins"
                 />
               )}
-              {isOwnProfile && balance !== null && balance.firecoin_balance > 0 && (
+              {balance !== null && balance.firecoin_balance > 0 && (
                 <CurrencyBadge
                   value={balance.firecoin_balance}
                   label="firecoins"
@@ -377,7 +369,7 @@ export default function PerfilPage() {
           )}
 
           {!loadingStats && stats && (
-            <div className="grid grid-cols-3 gap-3 w-full">
+            <div className="grid grid-cols-2 gap-3 w-full sm:grid-cols-4">
               <Card className="flex flex-col items-center py-4 px-2">
                 <span className="text-2xl font-bold">{stats.answers_total}</span>
                 <span className="text-xs text-muted text-center mt-1">respondidas</span>
@@ -391,6 +383,12 @@ export default function PerfilPage() {
               <Card className="flex flex-col items-center py-4 px-2">
                 <span className="text-2xl font-bold">{stats.questions_created}</span>
                 <span className="text-xs text-muted text-center mt-1">criadas</span>
+              </Card>
+              <Card className="flex flex-col items-center py-4 px-2">
+                <span className="text-2xl font-bold text-muted">
+                  {stats.impossible_questions}
+                </span>
+                <span className="text-xs text-muted text-center mt-1">impossíveis</span>
               </Card>
             </div>
           )}

@@ -18,7 +18,7 @@ Cada participante aposta nenecoins na sua resposta. O criador revela o resultado
 O criador pode escolher se participa ou não do próprio bolão — se ele já sabe a resposta, marca que não pode apostar.
 
 ## Perguntas
-Membros criam conteúdo pros outros responderem. Pode ser uma história sobre alguém do grupo (os outros tentam adivinhar de quem é) ou uma charada com alternativas. Acertou? Pontou. Criou a pergunta? Também pontou.
+Membros criam conteúdo pros outros responderem. Pode ser uma história sobre alguém do grupo (os outros tentam adivinhar de quem é) ou uma charada com alternativas. Acertou? Pontou. Criou a pergunta? Também pontou. Se ninguém acertar — ou se só a família de quem criou acertar — a pergunta é considerada impossível e não rende pontos para o criador nem para quem respondeu.
 
 ## Desafios de Foto
 O coração do NeneHome. Cada desafio de foto é uma missão: tire a selfie certa, reúna as pessoas certas, registre o momento pedido. Envie a foto como prova e o grupo vota pra validar — se a maioria aprovar, os pontos são seus. Tem desafios pra todos os gostos: foto com cada membro individualmente, com cada casal, o grupo inteiro junto, os quatro cachorros numa foto só, selfie no rolé nenequer...

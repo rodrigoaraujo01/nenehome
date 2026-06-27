@@ -201,6 +201,7 @@ export interface ProfileStats {
   answers_total: number;
   answers_correct: number;
   questions_created: number;
+  impossible_questions: number;
   recent_answers: {
     is_correct: boolean;
     question_id: string;

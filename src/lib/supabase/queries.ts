@@ -432,7 +432,7 @@ export async function getProfileStats(nickname: string): Promise<ProfileStats | 
 
   if (!profileRow) return null;
 
-  const [pointsRes, answersRes, questionsRes] = await Promise.all([
+  const [pointsRes, answersRes, questionsRes, impossibleQuestionsRes] = await Promise.all([
     sb
       .from("member_points")
       .select("total_points")
@@ -448,6 +448,11 @@ export async function getProfileStats(nickname: string): Promise<ProfileStats | 
       .from("questions")
       .select("id", { count: "exact", head: true })
       .eq("creator_id", profileRow.id),
+    sb
+      .from("questions")
+      .select("id", { count: "exact", head: true })
+      .eq("creator_id", profileRow.id)
+      .eq("difficulty", "impossible"),
   ]);
 
   const total_points = (pointsRes.data?.total_points as number) ?? 0;
@@ -460,6 +465,7 @@ export async function getProfileStats(nickname: string): Promise<ProfileStats | 
     answers_total: answers.length,
     answers_correct: correct,
     questions_created,
+    impossible_questions: impossibleQuestionsRes.count ?? 0,
     recent_answers: answers as unknown as ProfileStats["recent_answers"],
   };
 }
@@ -795,6 +801,25 @@ export async function getNenecoinBalance(): Promise<NenecoinBalance | null> {
   const { data, error } = await getSupabase().rpc("get_nenecoin_balance");
   if (error) { console.error("getNenecoinBalance:", error); return null; }
   return data as NenecoinBalance;
+}
+
+export async function getPublicNenecoinBalance(
+  userId: string,
+): Promise<NenecoinBalance> {
+  const { data, error } = await getSupabase()
+    .from("nenecoin_balances")
+    .select("nenecoin_balance, firecoin_balance")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("getPublicNenecoinBalance:", error);
+  }
+  return {
+    nenecoin_balance: Number(data?.nenecoin_balance ?? 0),
+    firecoin_balance: Number(data?.firecoin_balance ?? 0),
+    firecoin_popup_shown: true,
+  };
 }
 
 export async function claimWeeklyBonuses(): Promise<WeeklyBonusResult | null> {
