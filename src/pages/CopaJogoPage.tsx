@@ -91,6 +91,9 @@ export default function CopaJogoPage() {
         setAwayScore(data.match.my_prediction ? String(data.match.my_prediction.away_score) : "");
         setCoins(data.match.my_prediction?.coins_wagered ?? 0);
         setError("");
+        // Clear any leftover submit state from a "confirmar e próximo" jump
+        setSubmitting(false);
+        setSubmittingNext(false);
         if (data.match.home_score !== null) {
           setAdminHome(String(data.match.home_score));
           setAdminAway(String(data.match.away_score));
