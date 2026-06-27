@@ -6,7 +6,6 @@ import { Header } from "@/components/Header";
 import { Avatar } from "@/components/Avatar";
 import { Button } from "@/components/ui/Button";
 import { AchievementToast } from "@/components/AchievementToast";
-import { CurrencyBadge } from "@/components/CurrencyBadge";
 import { useAuth } from "@/hooks/useAuth";
 import {
   getWcMatch,
@@ -345,37 +344,39 @@ export default function CopaJogoPage() {
                 </div>
               </div>
 
-              {/* Coin wager */}
+              {/* Coin wager — mirrors the question page's bet block */}
               {balance && (
-                <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-xs text-muted">Nenecoins a apostar (opcional)</label>
-                    <CurrencyBadge value={balance.nenecoin_balance} label="" icon="nenecoins" />
+                <div className="space-y-2.5 rounded-2xl border border-yellow/20 bg-yellow/5 px-4 py-3.5">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-yellow-400">
+                      Apostar nenecoins (opcional)
+                    </p>
+                    <span className="text-xs text-muted">Saldo: {balance.nenecoin_balance}</span>
                   </div>
                   <div className="flex items-center gap-3">
                     <button
                       type="button"
                       onClick={() => setCoins((c) => Math.max(0, c - 5))}
-                      className="w-9 h-9 rounded-full border border-border text-muted hover:border-accent/40 text-lg font-bold"
-                    >-</button>
+                      className="w-9 h-9 rounded-full border border-border text-muted hover:border-yellow/40 text-lg font-bold"
+                    >−</button>
                     <input
                       type="number"
                       min={0}
                       max={balance.nenecoin_balance}
                       value={coins}
                       onChange={(e) => setCoins(Math.max(0, Math.min(balance.nenecoin_balance, parseInt(e.target.value) || 0)))}
-                      className="flex-1 text-center bg-surface border border-border rounded-xl px-4 py-2 text-lg font-bold focus:outline-none focus:border-accent [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                      className="flex-1 text-center bg-surface border border-border rounded-xl px-4 py-2 text-lg font-bold focus:outline-none focus:border-yellow/50 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
                     />
                     <button
                       type="button"
                       onClick={() => setCoins((c) => Math.min(balance.nenecoin_balance, c + 5))}
-                      className="w-9 h-9 rounded-full border border-border text-muted hover:border-accent/40 text-lg font-bold"
+                      className="w-9 h-9 rounded-full border border-border text-muted hover:border-yellow/40 text-lg font-bold"
                     >+</button>
                   </div>
                   <button
                     type="button"
                     onClick={() => setCoins(balance.nenecoin_balance)}
-                    className="mt-1 text-xs text-accent hover:opacity-80 transition-opacity"
+                    className="text-xs text-yellow-400 hover:opacity-80 transition-opacity"
                   >
                     All in ({balance.nenecoin_balance})
                   </button>
