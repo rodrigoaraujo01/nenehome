@@ -403,7 +403,7 @@ export default function PerguntaPage() {
                     )
                   ) : (
                     <span className="text-muted">
-                      🪙 Apostou {question.my_answer?.coins_wagered} — paga no fechamento
+                      🪙 Apostou {question.my_answer?.coins_wagered} (já debitado) — ganhos saem no fechamento
                     </span>
                   )}
                 </p>
@@ -733,8 +733,9 @@ export default function PerguntaPage() {
                 >+</button>
               </div>
               <p className="text-[11px] text-muted leading-snug">
-                Acertou: ganha conforme a dificuldade — Fácil 1.5× · Médio 2× · Difícil 3×.
-                Errou: perde a aposta. (Impossível não paga.)
+                A aposta é debitada na hora que você confirma. Acertou: ganha conforme
+                a dificuldade — Fácil 1.5× · Médio 2× · Difícil 3× (os ganhos saem no
+                fechamento). Errou: perde a aposta. (Impossível não paga.)
               </p>
             </div>
           )}
