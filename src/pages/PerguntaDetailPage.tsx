@@ -22,12 +22,11 @@ import {
   getAdultProfiles,
   getNenecoinBalance,
   getMySabotage,
+  getQuestionComments,
+  createQuestionComment,
 } from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
-import type { DbQuestion, AnswerResult, UnlockedAchievement, QuestionAnswer, NenecoinBalance, MySabotage, Powerup } from "@/lib/types";
-
-// multiplicador da aposta de coins por dificuldade (espelha o settle no SQL)
-const BET_MULT: Record<string, number> = { easy: 1.5, medium: 2, hard: 3 };
+import type { DbQuestion, AnswerResult, UnlockedAchievement, QuestionAnswer, QuestionComment, NenecoinBalance, MySabotage, Powerup } from "@/lib/types";
 
 const OPTION_LABELS = ["A", "B", "C", "D", "E"];
 
@@ -78,6 +77,10 @@ export default function PerguntaPage() {
   const [wager, setWager] = useState(0);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [mySabotage, setMySabotage] = useState<MySabotage | null>(null);
+  const [comments, setComments] = useState<QuestionComment[]>([]);
+  const [commentText, setCommentText] = useState("");
+  const [commenting, setCommenting] = useState(false);
+  const [commentError, setCommentError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!loading && !profile) navigate("/login");
@@ -92,13 +95,19 @@ export default function PerguntaPage() {
       .finally(() => {
         getQuestion(id, profile.id).then(async (q) => {
           setQuestion(q);
-          if (q?.my_answer || q?.creator_id === profile.id) {
-            const answers = await getQuestionAnswers(id);
-            setAllAnswers(answers);
-          }
-          // contra-golpe: se já respondi, vejo se fui sabotado (sem spoiler antes)
           if (q?.my_answer) {
-            setMySabotage(await getMySabotage(id));
+            // Comentários e respostas só são liberados depois da resposta.
+            const [answers, loadedComments, sabotage] = await Promise.all([
+              getQuestionAnswers(id),
+              getQuestionComments(id),
+              getMySabotage(id),
+            ]);
+            setAllAnswers(answers);
+            setComments(loadedComments);
+            setMySabotage(sabotage);
+          } else if (q?.creator_id === profile.id) {
+            // O criador pode ver as respostas, mas não a conversa dos respondentes.
+            setAllAnswers(await getQuestionAnswers(id));
           }
           // power-ups + saldo: só importa em perguntas ativas
           if (q && q.status !== "closed") {
@@ -187,15 +196,40 @@ export default function PerguntaPage() {
     setResult(res);
     if (res.achievements?.length) setNewAchievements(res.achievements);
     if (profile) {
-      const [updated, answers, sab] = await Promise.all([
+      const [updated, answers, sab, loadedComments] = await Promise.all([
         getQuestion(question.id, profile.id),
         getQuestionAnswers(question.id),
         getMySabotage(question.id),
+        getQuestionComments(question.id),
       ]);
       if (updated) setQuestion(updated);
       setAllAnswers(answers);
       setMySabotage(sab);
+      setComments(loadedComments);
     }
+  }
+
+  async function handleCommentSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!question || !profile || !commentText.trim() || commenting) return;
+
+    setCommenting(true);
+    setCommentError(null);
+    const response = await createQuestionComment(
+      question.id,
+      profile.id,
+      commentText,
+    );
+
+    if (response.error) {
+      setCommentError("Não foi possível enviar o comentário. Tente novamente.");
+      setCommenting(false);
+      return;
+    }
+
+    setCommentText("");
+    setComments(await getQuestionComments(question.id));
+    setCommenting(false);
   }
 
   // Garante que o usuário tem ao menos 1 do poder, comprando na hora se preciso.
@@ -612,6 +646,77 @@ export default function PerguntaPage() {
                   </div>
                 );
               })}
+            </section>
+          )}
+
+          {/* Answer-gated discussion. RLS also enforces this on the server. */}
+          {(alreadyAnswered || !!result) && (
+            <section className="space-y-3 border-t border-border pt-5">
+              <div>
+                <p className="text-xs font-bold text-muted uppercase tracking-wider">
+                  Comentários ({comments.length})
+                </p>
+                <p className="text-[11px] text-muted mt-1">
+                  Só quem respondeu esta pergunta consegue ver e comentar.
+                </p>
+              </div>
+
+              {comments.length > 0 && (
+                <div className="space-y-3">
+                  {comments.map((comment) => (
+                    <div key={comment.id} className="flex items-start gap-3">
+                      <Avatar
+                        spriteUrl={comment.author.avatar_url}
+                        nickname={comment.author.nickname}
+                        size={28}
+                      />
+                      <div className="min-w-0 flex-1 rounded-xl border border-border bg-surface px-3 py-2.5">
+                        <div className="flex items-baseline justify-between gap-2">
+                          <span className="text-xs font-bold">
+                            {comment.author.nickname}
+                          </span>
+                          <time className="text-[10px] text-muted shrink-0">
+                            {new Date(comment.created_at).toLocaleString("pt-BR", {
+                              day: "2-digit",
+                              month: "2-digit",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })}
+                          </time>
+                        </div>
+                        <p className="text-sm mt-1 whitespace-pre-wrap break-words">
+                          {comment.content}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <form onSubmit={handleCommentSubmit} className="space-y-2">
+                <textarea
+                  value={commentText}
+                  onChange={(e) => setCommentText(e.target.value.slice(0, 500))}
+                  placeholder="Deixe um comentário..."
+                  rows={3}
+                  maxLength={500}
+                  className="w-full rounded-xl border border-border bg-surface px-3 py-2.5 text-sm resize-none focus:outline-none focus:border-accent/50"
+                />
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[10px] text-muted">
+                    {commentText.length}/500
+                  </span>
+                  <Button
+                    type="submit"
+                    disabled={!commentText.trim() || commenting}
+                  >
+                    {commenting ? "Enviando..." : "Comentar"}
+                  </Button>
+                </div>
+                {commentError && (
+                  <p className="text-xs text-red-400">{commentError}</p>
+                )}
+              </form>
             </section>
           )}
 

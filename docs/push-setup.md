@@ -1,7 +1,8 @@
 # Push Notifications — Setup
 
 Web Push para avisar o grupo quando alguém cria uma **pergunta**, um **desafio de
-foto** ou envia uma **foto para votar**. Funciona com o app fechado em
+foto**, envia uma **foto para votar** ou comenta em uma pergunta já respondida.
+Funciona com o app fechado em
 Android/desktop Chrome; no iPhone, só depois de **Adicionar à Tela de Início**
 (iOS 16.4+).
 
@@ -13,7 +14,7 @@ Android/desktop Chrome; no iPhone, só depois de **Adicionar à Tela de Início*
 | Manifest PWA | `public/manifest.json` (+ tags em `index.html`) |
 | Registro do SW | `src/main.tsx` |
 | Opt-in (perfil + banner home) | `src/components/PushToggle.tsx`, `src/components/PushBanner.tsx`, `src/hooks/usePushSubscription.ts`, `src/lib/push.ts` |
-| Tabela + triggers | `supabase/push_subscriptions.sql` |
+| Tabelas + triggers | `supabase/push_subscriptions.sql`, `supabase/notifications_v2.sql`, `supabase/question_comments.sql` |
 | Envio | `supabase/functions/send-push/index.ts` |
 
 ## Passo a passo
@@ -44,7 +45,8 @@ Redeploy depois de adicionar.
 
 ### 4. Criar a tabela e os triggers
 
-Rode `supabase/push_subscriptions.sql` no SQL Editor do Supabase.
+Rode `supabase/push_subscriptions.sql`, `supabase/notifications_v2.sql` e
+`supabase/question_comments.sql`, nessa ordem, no SQL Editor do Supabase.
 
 ### 5. Deploy da Edge Function
 

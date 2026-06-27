@@ -14,6 +14,7 @@ const PREF_ITEMS: { key: keyof NotificationPrefs; label: string }[] = [
   { key: "new_photo", label: "Novas fotos para votar" },
   { key: "question_completed", label: "Resultado das perguntas (pontos liberados)" },
   { key: "photo_rejected", label: "Minha foto foi rejeitada" },
+  { key: "question_comment", label: "Comentários nas perguntas que respondi" },
 ];
 
 function NotificationPrefsList({ userId }: { userId: string }) {

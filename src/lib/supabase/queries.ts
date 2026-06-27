@@ -35,6 +35,7 @@ import type {
   WcDistribution,
   SabotageRevenge,
   MySabotage,
+  QuestionComment,
 } from "@/lib/types";
 import { MEMBERS } from "@/lib/constants";
 
@@ -356,6 +357,40 @@ export async function getQuestionAnswers(questionId: string): Promise<QuestionAn
   if (!data) { console.warn("getQuestionAnswers: no data returned"); return []; }
   console.log("getQuestionAnswers:", data);
   return data as QuestionAnswer[];
+}
+
+// ─── Question comments (visible only after answering; enforced by RLS) ───────
+
+export async function getQuestionComments(
+  questionId: string,
+): Promise<QuestionComment[]> {
+  const { data, error } = await getSupabase()
+    .from("question_comments")
+    .select(`
+      id, question_id, user_id, content, created_at,
+      author:profiles!user_id(id, nickname, avatar_url)
+    `)
+    .eq("question_id", questionId)
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    console.error("getQuestionComments error:", error);
+    return [];
+  }
+  return (data ?? []) as unknown as QuestionComment[];
+}
+
+export async function createQuestionComment(
+  questionId: string,
+  userId: string,
+  content: string,
+): Promise<{ error?: string }> {
+  const { error } = await getSupabase().from("question_comments").insert({
+    question_id: questionId,
+    user_id: userId,
+    content: content.trim(),
+  });
+  return error ? { error: error.message } : {};
 }
 
 // ─── Submit answer (via RPC) ──────────────────────────────────────────────────
@@ -1179,6 +1214,7 @@ export interface NotificationPrefs {
   new_photo: boolean;
   question_completed: boolean;
   photo_rejected: boolean;
+  question_comment: boolean;
 }
 
 export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
@@ -1187,6 +1223,7 @@ export const DEFAULT_NOTIFICATION_PREFS: NotificationPrefs = {
   new_photo: true,
   question_completed: true,
   photo_rejected: true,
+  question_comment: true,
 };
 
 export async function getNotificationPrefs(
@@ -1195,7 +1232,7 @@ export async function getNotificationPrefs(
   const { data } = await getSupabase()
     .from("notification_prefs")
     .select(
-      "new_question, new_challenge, new_photo, question_completed, photo_rejected",
+      "new_question, new_challenge, new_photo, question_completed, photo_rejected, question_comment",
     )
     .eq("user_id", userId)
     .maybeSingle();

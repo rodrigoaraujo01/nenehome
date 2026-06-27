@@ -42,7 +42,8 @@ type PrefKey =
   | "new_challenge"
   | "new_photo"
   | "question_completed"
-  | "photo_rejected";
+  | "photo_rejected"
+  | "question_comment";
 
 interface Built {
   notif: Notif;
@@ -51,6 +52,8 @@ interface Built {
   excludeUserId: string | null;
   // …or deliver only to this single user (targeted events).
   targetUserId: string | null;
+  // Some events target a set of members (for example, prior answerers).
+  targetUserIds?: string[];
 }
 
 // deno-lint-ignore no-explicit-any
@@ -116,6 +119,23 @@ function buildFromEvent(event: string, payload: any): Built | null {
         excludeUserId: null,
         targetUserId: (payload.target_user_id as string | undefined) ?? null,
       };
+    case "question_comment": {
+      const result = payload.is_correct === true ? "acertar" : "errar";
+      return {
+        notif: {
+          title: "Novo comentário 💬",
+          body: `${payload.commenter} comentou na pergunta de ${payload.question_creator} depois de ${result}`,
+          url: `/perguntas/${payload.question_id}`,
+          tag: `question-comment-${payload.comment_id ?? payload.question_id}`,
+        },
+        prefKey: "question_comment",
+        excludeUserId: null,
+        targetUserId: null,
+        targetUserIds: Array.isArray(payload.target_user_ids)
+          ? payload.target_user_ids as string[]
+          : [],
+      };
+    }
     case "question_settled": {
       const q = payload.question_id;
       const content = payload.content as string | undefined;
@@ -205,12 +225,19 @@ Deno.serve(async (req) => {
 
   if (!built) return new Response("ignored", { status: 200 });
 
-  const { notif, prefKey, excludeUserId, targetUserId } = built;
+  const { notif, prefKey, excludeUserId, targetUserId, targetUserIds } = built;
 
   let query = supabase
     .from("push_subscriptions")
     .select("endpoint, p256dh, auth, user_id");
-  if (targetUserId) query = query.eq("user_id", targetUserId);
+  if (targetUserIds) {
+    if (targetUserIds.length === 0) {
+      return new Response(JSON.stringify({ sent: 0, total: 0 }), {
+        headers: { "Content-Type": "application/json" },
+      });
+    }
+    query = query.in("user_id", targetUserIds);
+  } else if (targetUserId) query = query.eq("user_id", targetUserId);
   else if (excludeUserId) query = query.neq("user_id", excludeUserId);
 
   const { data: allSubs, error } = await query;

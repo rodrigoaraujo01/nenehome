@@ -64,6 +64,15 @@ export interface QuestionAnswer {
   points_earned: number;
 }
 
+export interface QuestionComment {
+  id: string;
+  question_id: string;
+  user_id: string;
+  content: string;
+  created_at: string;
+  author: Pick<DbProfile, "id" | "nickname" | "avatar_url">;
+}
+
 export interface DbQuestion {
   id: string;
   creator_id: string;

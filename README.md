@@ -44,3 +44,4 @@ O schema do Supabase está em `supabase/`:
 - `nenecoins.sql` — sistema de moedas (nenecoins + firecoins)
 - `bets.sql` — bolões/apostas
 - `worldcup.sql` — bolão da Copa 2026
+- `question_comments.sql` — comentários privados entre quem respondeu uma pergunta
