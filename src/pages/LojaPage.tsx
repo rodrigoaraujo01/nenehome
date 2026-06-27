@@ -90,9 +90,9 @@ export default function LojaPage() {
       <Header />
       <main className="max-w-lg mx-auto px-6 py-6 space-y-6">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">Loja</h2>
+          <h2 className="text-2xl font-bold tracking-tight">Loja de Poderes</h2>
           <p className="text-sm text-muted mt-1">
-            Gaste suas nenecoins em power-ups pra mandar bem nas perguntas e na Copa.
+            Gaste suas nenecoins em poderes pra mandar bem nas perguntas e na Copa.
           </p>
         </div>
 

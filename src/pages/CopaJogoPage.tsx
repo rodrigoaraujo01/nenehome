@@ -17,6 +17,8 @@ import {
   getWcDistribution,
   revealWcDistribution,
   getPowerupInventory,
+  getPowerups,
+  buyPowerup,
 } from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
 import type { WcMatch, WcPrediction, NenecoinBalance, UnlockedAchievement, WcDistribution } from "@/lib/types";
@@ -40,9 +42,10 @@ export default function CopaJogoPage() {
   const [balance, setBalance] = useState<NenecoinBalance | null>(null);
   const [fetching, setFetching] = useState(true);
 
-  // Revelar Distribuição (power-up)
+  // Revelar Distribuição (poder)
   const [dist, setDist] = useState<WcDistribution | null>(null);
   const [wcRevealQty, setWcRevealQty] = useState(0);
+  const [wcRevealPrice, setWcRevealPrice] = useState<number | null>(null);
   const [revealing, setRevealing] = useState(false);
   const [revealError, setRevealError] = useState("");
 
@@ -73,7 +76,8 @@ export default function CopaJogoPage() {
       getNenecoinBalance(),
       getWcDistribution(id!),
       getPowerupInventory(),
-    ]).then(([data, bal, distData, inv]) => {
+      getPowerups(),
+    ]).then(([data, bal, distData, inv, cat]) => {
       if (data) {
         setMatch(data.match);
         setPredictions(data.predictions);
@@ -90,6 +94,7 @@ export default function CopaJogoPage() {
       setBalance(bal);
       setDist(distData);
       setWcRevealQty(inv.find((i) => i.powerup_key === "wc_reveal")?.qty ?? 0);
+      setWcRevealPrice(cat.find((p) => p.key === "wc_reveal")?.price ?? null);
       setFetching(false);
     });
   }, [profile, id]);
@@ -148,6 +153,20 @@ export default function CopaJogoPage() {
   async function handleReveal() {
     setRevealError("");
     setRevealing(true);
+    // compra-e-usa: se não tem o poder, compra 1 na hora antes de revelar
+    if (wcRevealQty <= 0) {
+      const buy = await buyPowerup("wc_reveal", 1);
+      if (buy.error) {
+        setRevealing(false);
+        setRevealError(buy.error);
+        return;
+      }
+      setWcRevealQty(buy.qty ?? 1);
+      if (buy.nenecoin_balance != null) {
+        const nb = buy.nenecoin_balance;
+        setBalance((b) => (b ? { ...b, nenecoin_balance: nb } : b));
+      }
+    }
     const res = await revealWcDistribution(match!.id);
     setRevealing(false);
     if (res.error) {
@@ -343,15 +362,26 @@ export default function CopaJogoPage() {
             <div className="bg-surface border border-purple/20 rounded-2xl p-4 space-y-3">
               <div className="flex items-center justify-between gap-2">
                 <h3 className="text-sm font-bold">🔭 Distribuição dos palpites</h3>
-                {!dist && wcRevealQty > 0 && (
-                  <button
-                    onClick={handleReveal}
-                    disabled={revealing}
-                    className="text-xs font-semibold px-3 py-1.5 rounded-full border border-purple/40 text-purple hover:bg-purple/10 transition-colors disabled:opacity-50"
-                  >
-                    {revealing ? "..." : `Revelar (${wcRevealQty})`}
-                  </button>
-                )}
+                {!dist && (() => {
+                  const owned = wcRevealQty > 0;
+                  const tooPoor =
+                    !owned &&
+                    wcRevealPrice != null &&
+                    wcRevealPrice > (balance?.nenecoin_balance ?? 0);
+                  return (
+                    <button
+                      onClick={handleReveal}
+                      disabled={revealing || tooPoor}
+                      className="text-xs font-semibold px-3 py-1.5 rounded-full border border-purple/40 text-purple hover:bg-purple/10 transition-colors disabled:opacity-50"
+                    >
+                      {revealing
+                        ? "..."
+                        : owned
+                        ? `Revelar (${wcRevealQty})`
+                        : `Revelar · ${wcRevealPrice ?? ""} 🪙`}
+                    </button>
+                  );
+                })()}
               </div>
               {revealError && <p className="text-xs text-red-400">{revealError}</p>}
 
@@ -388,18 +418,10 @@ export default function CopaJogoPage() {
                     </p>
                   </div>
                 )
-              ) : wcRevealQty > 0 ? (
-                <p className="text-xs text-muted">
-                  Use um power-up pra ver como o grupo está palpitando (anônimo)
-                  antes do fechamento.
-                </p>
               ) : (
                 <p className="text-xs text-muted">
-                  Compre o power-up{" "}
-                  <Link to="/loja" className="text-purple font-semibold">
-                    Revelar Distribuição
-                  </Link>{" "}
-                  na loja pra espiar a tendência do grupo.
+                  Espie como o grupo está palpitando (anônimo) antes do
+                  fechamento — compre e use na hora pelo botão acima.
                 </p>
               )}
             </div>

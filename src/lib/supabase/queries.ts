@@ -38,6 +38,29 @@ import type {
 } from "@/lib/types";
 import { MEMBERS } from "@/lib/constants";
 
+// ─── Util: seeded shuffle ─────────────────────────────────────────────────────
+// Embaralha de forma determinística a partir de uma seed string (Fisher–Yates +
+// mulberry32). Mesma seed → mesma ordem, então a ordem fica estável entre reloads.
+function shuffleSeeded<T>(arr: T[], seed: string): T[] {
+  let h = 1779033703 ^ seed.length;
+  for (let i = 0; i < seed.length; i++) {
+    h = Math.imul(h ^ seed.charCodeAt(i), 3432918353);
+    h = (h << 13) | (h >>> 19);
+  }
+  const rand = () => {
+    h = Math.imul(h ^ (h >>> 16), 2246822507);
+    h = Math.imul(h ^ (h >>> 13), 3266489909);
+    h ^= h >>> 16;
+    return (h >>> 0) / 4294967296;
+  };
+  const out = [...arr];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
 // ─── Profiles ─────────────────────────────────────────────────────────────────
 
 export async function getOrCreateProfile(
@@ -199,6 +222,14 @@ export async function getQuestion(
         },
       ];
     }
+  }
+
+  // Embaralha as alternativas de MC de forma estável por usuário+pergunta, para
+  // que a decoy da Sabotagem não fique sempre na última posição. A correção é
+  // rastreada por is_correct / is_decoy (nunca por posição), então é seguro.
+  // Seed sem decoy garante mesma ordem na resposta e no reveal pós-resposta.
+  if (question.type === "multiple_choice") {
+    options = shuffleSeeded(options, `${id}:${userId}`);
   }
 
   return {

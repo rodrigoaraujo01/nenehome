@@ -15,6 +15,8 @@ import {
   deleteQuestion,
   settleQuestion,
   getPowerupInventory,
+  getPowerups,
+  buyPowerup,
   useEliminateOption,
   deploySabotage,
   getAdultProfiles,
@@ -22,7 +24,7 @@ import {
   getMySabotage,
 } from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
-import type { DbQuestion, AnswerResult, UnlockedAchievement, QuestionAnswer, NenecoinBalance, MySabotage } from "@/lib/types";
+import type { DbQuestion, AnswerResult, UnlockedAchievement, QuestionAnswer, NenecoinBalance, MySabotage, Powerup } from "@/lib/types";
 
 // multiplicador da aposta de coins por dificuldade (espelha o settle no SQL)
 const BET_MULT: Record<string, number> = { easy: 1.5, medium: 2, hard: 3 };
@@ -55,8 +57,9 @@ export default function PerguntaPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
 
-  // power-ups
+  // poderes (power-ups)
   const [inventory, setInventory] = useState<Record<string, number>>({});
+  const [catalog, setCatalog] = useState<Record<string, Powerup>>({});
   const [eliminatedOptionId, setEliminatedOptionId] = useState<string | null>(null);
   const [useSecondChance, setUseSecondChance] = useState(false);
   const [secondChanceUsed, setSecondChanceUsed] = useState(false);
@@ -99,16 +102,18 @@ export default function PerguntaPage() {
           }
           // power-ups + saldo: só importa em perguntas ativas
           if (q && q.status !== "closed") {
-            const [inv, ppl, bal] = await Promise.all([
+            const [inv, ppl, bal, cat] = await Promise.all([
               getPowerupInventory(),
               getAdultProfiles(),
               getNenecoinBalance(),
+              getPowerups(),
             ]);
             setInventory(
               Object.fromEntries(inv.map((i) => [i.powerup_key, i.qty]))
             );
             setAdults(ppl);
             setBalance(bal);
+            setCatalog(Object.fromEntries(cat.map((p) => [p.key, p])));
           }
           setFetching(false);
         });
@@ -193,9 +198,29 @@ export default function PerguntaPage() {
     }
   }
 
+  // Garante que o usuário tem ao menos 1 do poder, comprando na hora se preciso.
+  // Retorna uma mensagem de erro (ou null em caso de sucesso).
+  async function ensureOwned(key: string): Promise<string | null> {
+    if ((inventory[key] ?? 0) > 0) return null;
+    const res = await buyPowerup(key, 1);
+    if (res.error) return res.error;
+    setInventory((inv) => ({ ...inv, [key]: res.qty ?? (inv[key] ?? 0) + 1 }));
+    if (res.nenecoin_balance != null) {
+      const bal = res.nenecoin_balance;
+      setBalance((b) => (b ? { ...b, nenecoin_balance: bal } : b));
+    }
+    return null;
+  }
+
   async function handleEliminate() {
     if (!question) return;
     setPowerupBusy(true);
+    const buyErr = await ensureOwned("eliminate");
+    if (buyErr) {
+      setPowerupBusy(false);
+      setPowerupMsg(buyErr);
+      return;
+    }
     const res = await useEliminateOption(question.id);
     setPowerupBusy(false);
     if (res.error) {
@@ -213,10 +238,29 @@ export default function PerguntaPage() {
     }
   }
 
+  async function toggleSecondChance() {
+    if (useSecondChance) {
+      setUseSecondChance(false);
+      return;
+    }
+    const buyErr = await ensureOwned("second_chance");
+    if (buyErr) {
+      setPowerupMsg(buyErr);
+      return;
+    }
+    setUseSecondChance(true);
+  }
+
   async function handleSabotage() {
     if (!question || !sabotageTarget || !sabotageText.trim()) return;
     setSabotageBusy(true);
     setSabotageError(null);
+    const buyErr = await ensureOwned("sabotage");
+    if (buyErr) {
+      setSabotageBusy(false);
+      setSabotageError(buyErr);
+      return;
+    }
     const res = await deploySabotage({
       question_id: question.id,
       target_user_id: sabotageTarget,
@@ -234,7 +278,7 @@ export default function PerguntaPage() {
     setSabotageOpen(false);
     setSabotageTarget(null);
     setSabotageText("");
-    setPowerupMsg("😈 Sabotagem plantada! Só o alvo vai ver a 5ª alternativa.");
+    setPowerupMsg("😈 Sabotagem plantada! Só o alvo vai ver a alternativa falsa.");
   }
 
   async function handleDelete() {
@@ -571,62 +615,88 @@ export default function PerguntaPage() {
             </section>
           )}
 
-          {/* power-ups (loja) */}
+          {/* poderes (compra-e-usa direto da pergunta) */}
           {!isSettled && (() => {
             const canAnswer = !isCreator && !alreadyAnswered && !result;
             const isMC = question.type === "multiple_choice";
-            const showEliminate =
-              canAnswer && isMC && (inventory.eliminate ?? 0) > 0 && !eliminatedOptionId;
-            const showSecondChance =
-              canAnswer && (inventory.second_chance ?? 0) > 0 && !secondChanceUsed;
-            const showSabotage = isMC && (inventory.sabotage ?? 0) > 0;
+            const showEliminate = canAnswer && isMC && !eliminatedOptionId;
+            const showSecondChance = canAnswer && !secondChanceUsed;
+            const showSabotage = isMC && !isCreator;
             if (!showEliminate && !showSecondChance && !showSabotage && !powerupMsg)
               return null;
+
+            // rótulo do botão: "Usar (n)" se já tem; senão o preço pra comprar agora
+            const actionLabel = (key: string) => {
+              const owned = inventory[key] ?? 0;
+              if (owned > 0) return `Usar (${owned})`;
+              const price = catalog[key]?.price;
+              return price != null ? `${price} 🪙` : "Comprar";
+            };
+            // sem saldo pra comprar (só trava poderes de compra-imediata)
+            const tooPoor = (key: string) => {
+              if ((inventory[key] ?? 0) > 0) return false;
+              const price = catalog[key]?.price ?? Infinity;
+              return price > (balance?.nenecoin_balance ?? 0);
+            };
 
             return (
               <div className="space-y-2.5 rounded-2xl border border-purple/20 bg-purple/5 px-4 py-3.5">
                 <p className="text-[10px] font-bold uppercase tracking-wider text-purple">
-                  Power-ups
+                  Poderes
                 </p>
                 {powerupMsg && (
                   <p className="text-xs text-muted">{powerupMsg}</p>
                 )}
-                <div className="flex flex-wrap gap-2">
+                <div className="space-y-2">
                   {showEliminate && (
-                    <button
-                      onClick={handleEliminate}
-                      disabled={powerupBusy}
-                      className="text-xs font-semibold px-3 py-2 rounded-xl border border-border bg-surface hover:border-purple/40 transition-colors disabled:opacity-50"
-                    >
-                      ✂️ Eliminar alternativa ({inventory.eliminate})
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold">✂️ Eliminar alternativa</p>
+                        <p className="text-[11px] text-muted leading-snug">Remove uma opção errada.</p>
+                      </div>
+                      <button
+                        onClick={handleEliminate}
+                        disabled={powerupBusy || tooPoor("eliminate")}
+                        className="shrink-0 text-xs font-semibold px-3 py-2 rounded-xl border border-border bg-surface hover:border-purple/40 transition-colors disabled:opacity-50"
+                      >
+                        {actionLabel("eliminate")}
+                      </button>
+                    </div>
                   )}
                   {showSecondChance && (
-                    <button
-                      onClick={() => setUseSecondChance((v) => !v)}
-                      className={`text-xs font-semibold px-3 py-2 rounded-xl border transition-colors ${
-                        useSecondChance
-                          ? "border-purple bg-purple/15 text-purple"
-                          : "border-border bg-surface hover:border-purple/40"
-                      }`}
-                    >
-                      🔁 Segunda chance ({inventory.second_chance})
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold">🔁 Segunda chance</p>
+                        <p className="text-[11px] text-muted leading-snug">Se errar, ganha uma nova tentativa.</p>
+                      </div>
+                      <button
+                        onClick={toggleSecondChance}
+                        disabled={tooPoor("second_chance")}
+                        className={`shrink-0 text-xs font-semibold px-3 py-2 rounded-xl border transition-colors disabled:opacity-50 ${
+                          useSecondChance
+                            ? "border-purple bg-purple/15 text-purple"
+                            : "border-border bg-surface hover:border-purple/40"
+                        }`}
+                      >
+                        {useSecondChance ? "Ativo ✓" : actionLabel("second_chance")}
+                      </button>
+                    </div>
                   )}
                   {showSabotage && (
-                    <button
-                      onClick={() => { setSabotageError(null); setSabotageOpen(true); }}
-                      className="text-xs font-semibold px-3 py-2 rounded-xl border border-border bg-surface hover:border-purple/40 transition-colors"
-                    >
-                      😈 Sabotar alguém ({inventory.sabotage})
-                    </button>
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-semibold">😈 Sabotar alguém</p>
+                        <p className="text-[11px] text-muted leading-snug">Plante uma alternativa falsa pra quem ainda não respondeu.</p>
+                      </div>
+                      <button
+                        onClick={() => { setSabotageError(null); setSabotageOpen(true); }}
+                        className="shrink-0 text-xs font-semibold px-3 py-2 rounded-xl border border-border bg-surface hover:border-purple/40 transition-colors"
+                      >
+                        {actionLabel("sabotage")}
+                      </button>
+                    </div>
                   )}
                 </div>
-                {useSecondChance && (
-                  <p className="text-[11px] text-muted leading-snug">
-                    🔁 Se errar, ganha uma nova tentativa.
-                  </p>
-                )}
               </div>
             );
           })()}
@@ -741,8 +811,9 @@ export default function PerguntaPage() {
               <div>
                 <h3 className="text-lg font-bold">😈 Sabotar alguém</h3>
                 <p className="text-xs text-muted mt-1">
-                  Plante uma 5ª alternativa falsa, escrita por você. Só o alvo a
-                  verá — e só se ele ainda não respondeu.
+                  Plante uma alternativa falsa, escrita por você. Ela entra numa
+                  posição aleatória e só o alvo a verá — e só se ele ainda não
+                  respondeu.
                 </p>
               </div>
 
@@ -809,7 +880,11 @@ export default function PerguntaPage() {
                   disabled={!sabotageTarget || !sabotageText.trim() || sabotageBusy}
                   className="flex-1"
                 >
-                  {sabotageBusy ? "..." : "Plantar 😈"}
+                  {sabotageBusy
+                    ? "..."
+                    : (inventory.sabotage ?? 0) > 0
+                    ? "Plantar 😈"
+                    : `Plantar 😈 · ${catalog.sabotage?.price ?? ""} 🪙`}
                 </Button>
               </div>
             </motion.div>
