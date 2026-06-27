@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
@@ -104,6 +104,8 @@ export default function CopaJogosPage() {
   const [fetching, setFetching] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
+  const sectionRefs = useRef<Record<string, HTMLElement | null>>({});
+  const didScrollRef = useRef(false);
 
   const isAdmin = profile?.nickname === "Rodrigo";
 
@@ -130,15 +132,7 @@ export default function CopaJogosPage() {
     });
   }, [profile]);
 
-  if (loading || fetching || !profile) {
-    return (
-      <main className="flex-1 flex items-center justify-center">
-        <p className="text-muted">Carregando...</p>
-      </main>
-    );
-  }
-
-  // Group by date
+  // Group by date (computed before the early return so the scroll effect can use it)
   const grouped = matches.reduce<Record<string, WcMatch[]>>((acc, m) => {
     const dateKey = new Date(m.date).toLocaleDateString("pt-BR", {
       weekday: "long",
@@ -149,6 +143,30 @@ export default function CopaJogosPage() {
     acc[dateKey].push(m);
     return acc;
   }, {});
+
+  // First day group that is today or in the future (auto-scroll target)
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const scrollTargetKey = Object.entries(grouped).find(([, dayMatches]) =>
+    dayMatches.some((m) => new Date(m.date) >= startOfToday),
+  )?.[0];
+
+  useEffect(() => {
+    if (fetching || didScrollRef.current || !scrollTargetKey) return;
+    const el = sectionRefs.current[scrollTargetKey];
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      didScrollRef.current = true;
+    }
+  }, [fetching, scrollTargetKey]);
+
+  if (loading || fetching || !profile) {
+    return (
+      <main className="flex-1 flex items-center justify-center">
+        <p className="text-muted">Carregando...</p>
+      </main>
+    );
+  }
 
   return (
     <>
@@ -227,7 +245,13 @@ export default function CopaJogosPage() {
           )}
 
           {Object.entries(grouped).map(([dateLabel, dayMatches]) => (
-            <section key={dateLabel} className="space-y-3">
+            <section
+              key={dateLabel}
+              ref={(el) => {
+                sectionRefs.current[dateLabel] = el;
+              }}
+              className="space-y-3 scroll-mt-24"
+            >
               <h3 className="text-xs font-bold text-muted uppercase tracking-wider">
                 {dateLabel}
               </h3>

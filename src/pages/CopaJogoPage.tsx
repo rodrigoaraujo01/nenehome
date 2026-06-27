@@ -10,6 +10,7 @@ import { CurrencyBadge } from "@/components/CurrencyBadge";
 import { useAuth } from "@/hooks/useAuth";
 import {
   getWcMatch,
+  getWcMatches,
   placeWcPrediction,
   scoreWcMatch,
   revertWcMatch,
@@ -53,8 +54,12 @@ export default function CopaJogoPage() {
   const [awayScore, setAwayScore] = useState("");
   const [coins, setCoins] = useState(0);
   const [submitting, setSubmitting] = useState(false);
+  const [submittingNext, setSubmittingNext] = useState(false);
   const [error, setError] = useState("");
   const [toasts, setToasts] = useState<UnlockedAchievement[]>([]);
+
+  // Next still-open game to jump to after confirming ("confirmar e próximo")
+  const [nextMatchId, setNextMatchId] = useState<string | null>(null);
 
   // Admin state
   const [adminHome, setAdminHome] = useState("");
@@ -81,11 +86,12 @@ export default function CopaJogoPage() {
       if (data) {
         setMatch(data.match);
         setPredictions(data.predictions);
-        if (data.match.my_prediction) {
-          setHomeScore(String(data.match.my_prediction.home_score));
-          setAwayScore(String(data.match.my_prediction.away_score));
-          setCoins(data.match.my_prediction.coins_wagered);
-        }
+        // Reset the form for the freshly-loaded game (important when jumping
+        // between games via "confirmar e próximo")
+        setHomeScore(data.match.my_prediction ? String(data.match.my_prediction.home_score) : "");
+        setAwayScore(data.match.my_prediction ? String(data.match.my_prediction.away_score) : "");
+        setCoins(data.match.my_prediction?.coins_wagered ?? 0);
+        setError("");
         if (data.match.home_score !== null) {
           setAdminHome(String(data.match.home_score));
           setAdminAway(String(data.match.away_score));
@@ -96,6 +102,25 @@ export default function CopaJogoPage() {
       setWcRevealQty(inv.find((i) => i.powerup_key === "wc_reveal")?.qty ?? 0);
       setWcRevealPrice(cat.find((p) => p.key === "wc_reveal")?.price ?? null);
       setFetching(false);
+    });
+  }, [profile, id]);
+
+  // Work out the next still-bettable game to offer as "confirmar e próximo"
+  useEffect(() => {
+    if (!profile) return;
+    getWcMatches(profile.id).then((all) => {
+      const now = Date.now();
+      const open = all
+        .filter(
+          (m) =>
+            m.id !== id &&
+            m.status === "scheduled" &&
+            now < new Date(m.date).getTime() - 10 * 60_000,
+        )
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+      // Prefer the next game without a prediction yet; fall back to the next open game
+      const next = open.find((m) => !m.my_prediction) ?? open[0];
+      setNextMatchId(next?.id ?? null);
     });
   }, [profile, id]);
 
@@ -113,16 +138,18 @@ export default function CopaJogoPage() {
   // Allow finishing only after expected end time (kickoff + 105 min)
   const canFinish = new Date() >= new Date(kickoff.getTime() + 105 * 60_000);
 
-  async function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent, goNext = false) {
     e.preventDefault();
     setError("");
-    setSubmitting(true);
+    if (goNext) setSubmittingNext(true);
+    else setSubmitting(true);
 
     const h = parseInt(homeScore);
     const a = parseInt(awayScore);
     if (isNaN(h) || isNaN(a) || h < 0 || a < 0) {
       setError("Placar invalido");
       setSubmitting(false);
+      setSubmittingNext(false);
       return;
     }
 
@@ -136,6 +163,11 @@ export default function CopaJogoPage() {
     if (result.error) {
       setError(result.error);
     } else {
+      if (goNext && nextMatchId) {
+        // Jump straight to the next open game; its effect refetches/resets the form
+        navigate(`/copa/jogo/${nextMatchId}`);
+        return;
+      }
       if (result.achievements?.length) {
         setToasts(result.achievements);
       }
@@ -148,6 +180,7 @@ export default function CopaJogoPage() {
       setBalance(bal);
     }
     setSubmitting(false);
+    setSubmittingNext(false);
   }
 
   async function handleReveal() {
@@ -351,9 +384,24 @@ export default function CopaJogoPage() {
 
               {error && <p className="text-sm text-red-400">{error}</p>}
 
-              <Button type="submit" disabled={submitting} className="w-full">
-                {match.my_prediction ? "Atualizar palpite" : "Confirmar palpite"}
+              <Button type="submit" disabled={submitting || submittingNext} className="w-full">
+                {submitting
+                  ? "..."
+                  : match.my_prediction
+                  ? "Atualizar palpite"
+                  : "Confirmar palpite"}
               </Button>
+
+              {nextMatchId && (
+                <button
+                  type="button"
+                  onClick={(e) => handleSubmit(e, true)}
+                  disabled={submitting || submittingNext}
+                  className="w-full text-sm font-semibold text-accent border border-accent/40 rounded-xl py-2.5 hover:bg-accent/10 transition-colors disabled:opacity-50"
+                >
+                  {submittingNext ? "..." : "Confirmar e próximo jogo ›"}
+                </button>
+              )}
             </form>
           )}
 
