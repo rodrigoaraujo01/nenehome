@@ -1026,7 +1026,7 @@ export async function getWcMatches(userId: string): Promise<WcMatch[]> {
   const sb = getSupabase();
 
   const [matchRes, predRes] = await Promise.all([
-    sb.from("wc_matches").select("*").order("match_number"),
+    sb.from("wc_matches").select("*").order("date").order("match_number"),
     sb.from("wc_predictions").select("*").eq("user_id", userId),
   ]);
 
