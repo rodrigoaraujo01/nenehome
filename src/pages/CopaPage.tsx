@@ -12,6 +12,12 @@ import {
   getWcLeaderboard,
   getNenecoinBalance,
 } from "@/lib/supabase/queries";
+import {
+  syncWcFromEspn,
+  syncWcFixturesFromEspn,
+  type SyncResult,
+  type FixtureSyncResult,
+} from "@/lib/espn";
 import { ADULTS } from "@/lib/constants";
 import type { WcMatch, WcLeaderboardEntry, NenecoinBalance } from "@/lib/types";
 
@@ -66,10 +72,36 @@ export default function CopaDashboard() {
   const [leaderboard, setLeaderboard] = useState<WcLeaderboardEntry[]>([]);
   const [balance, setBalance] = useState<NenecoinBalance | null>(null);
   const [fetching, setFetching] = useState(true);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<SyncResult | null>(null);
+  const [fixtureSyncing, setFixtureSyncing] = useState(false);
+  const [fixtureResult, setFixtureResult] = useState<FixtureSyncResult | null>(null);
+
+  const isAdmin = profile?.nickname === "Rodrigo";
 
   useEffect(() => {
     if (!loading && !profile) navigate("/login");
   }, [loading, profile, navigate]);
+
+  async function handleSyncScores() {
+    if (!profile) return;
+    setSyncing(true);
+    setSyncResult(null);
+    const result = await syncWcFromEspn(matches);
+    setMatches(await getWcMatches(profile.id));
+    setSyncResult(result);
+    setSyncing(false);
+  }
+
+  async function handleSyncFixtures() {
+    if (!profile) return;
+    setFixtureSyncing(true);
+    setFixtureResult(null);
+    const result = await syncWcFixturesFromEspn(matches);
+    setMatches(await getWcMatches(profile.id));
+    setFixtureResult(result);
+    setFixtureSyncing(false);
+  }
 
   useEffect(() => {
     if (!profile) return;
@@ -160,6 +192,131 @@ export default function CopaDashboard() {
               />
             )}
           </div>
+
+          {/* Admin: ESPN sync */}
+          {isAdmin && (
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                <button
+                  onClick={handleSyncScores}
+                  disabled={syncing || fixtureSyncing}
+                  className="flex-1 bg-surface border border-border rounded-2xl px-4 py-2.5 text-sm font-semibold text-foreground hover:border-accent/40 disabled:opacity-50 transition-colors"
+                >
+                  {syncing ? "Sincronizando..." : "Atualizar placares"}
+                </button>
+                <button
+                  onClick={handleSyncFixtures}
+                  disabled={syncing || fixtureSyncing}
+                  className="flex-1 bg-surface border border-border rounded-2xl px-4 py-2.5 text-sm font-semibold text-foreground hover:border-accent/40 disabled:opacity-50 transition-colors"
+                >
+                  {fixtureSyncing ? "Atualizando..." : "Atualizar confrontos (TBD)"}
+                </button>
+              </div>
+
+              {syncResult && (
+                <div className="bg-surface border border-border rounded-2xl p-4 text-xs space-y-2">
+                  {syncResult.fetchError && (
+                    <p className="text-red-400">{syncResult.fetchError}</p>
+                  )}
+                  {syncResult.updated.length > 0 && (
+                    <div>
+                      <p className="font-bold text-green mb-1">
+                        Placares atualizados ({syncResult.updated.length})
+                      </p>
+                      {syncResult.updated.map((u, i) => (
+                        <p key={i} className="text-muted">
+                          {u.label}: {u.home} x {u.away}{" "}
+                          <span className="uppercase">
+                            {u.status === "finished" ? "(encerrado)" : "(ao vivo)"}
+                          </span>
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  {syncResult.errors.length > 0 && (
+                    <div>
+                      <p className="font-bold text-red-400 mb-1">
+                        Erros ({syncResult.errors.length})
+                      </p>
+                      {syncResult.errors.map((e, i) => (
+                        <p key={i} className="text-muted">
+                          {e.label}: {e.error}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  {syncResult.unmatched.length > 0 && (
+                    <div>
+                      <p className="font-bold text-muted mb-1">
+                        Não reconhecidos ({syncResult.unmatched.length})
+                      </p>
+                      <p className="text-muted">{syncResult.unmatched.join(", ")}</p>
+                    </div>
+                  )}
+                  {!syncResult.fetchError &&
+                    syncResult.updated.length === 0 &&
+                    syncResult.errors.length === 0 &&
+                    syncResult.unmatched.length === 0 && (
+                      <p className="text-muted">Nenhum jogo ao vivo ou encerrado para atualizar.</p>
+                    )}
+                </div>
+              )}
+
+              {fixtureResult && (
+                <div className="bg-surface border border-border rounded-2xl p-4 text-xs space-y-2">
+                  {fixtureResult.fetchError && (
+                    <p className="text-muted">{fixtureResult.fetchError}</p>
+                  )}
+                  {fixtureResult.updated.length > 0 && (
+                    <div>
+                      <p className="font-bold text-green mb-1">
+                        Confrontos atualizados ({fixtureResult.updated.length})
+                      </p>
+                      {fixtureResult.updated.map((u, i) => (
+                        <p key={i} className="text-muted">
+                          {u.label} —{" "}
+                          {new Date(u.date).toLocaleString("pt-BR", {
+                            day: "2-digit",
+                            month: "short",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  {fixtureResult.errors.length > 0 && (
+                    <div>
+                      <p className="font-bold text-red-400 mb-1">
+                        Erros ({fixtureResult.errors.length})
+                      </p>
+                      {fixtureResult.errors.map((e, i) => (
+                        <p key={i} className="text-muted">
+                          {e.label}: {e.error}
+                        </p>
+                      ))}
+                    </div>
+                  )}
+                  {fixtureResult.unknownTeams.length > 0 && (
+                    <div>
+                      <p className="font-bold text-muted mb-1">
+                        Times desconhecidos ({fixtureResult.unknownTeams.length})
+                      </p>
+                      <p className="text-muted">{fixtureResult.unknownTeams.join(", ")}</p>
+                    </div>
+                  )}
+                  {fixtureResult.unmatched.length > 0 && (
+                    <div>
+                      <p className="font-bold text-muted mb-1">
+                        Sem vaga TBD ({fixtureResult.unmatched.length})
+                      </p>
+                      <p className="text-muted">{fixtureResult.unmatched.join(", ")}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Live matches */}
           {liveMatches.length > 0 && (

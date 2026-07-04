@@ -1109,6 +1109,30 @@ export async function scoreWcMatch(params: {
   return data as WcScoreResult;
 }
 
+export async function updateWcFixture(params: {
+  match_id: string;
+  home_team: string;
+  home_code: string;
+  home_flag: string;
+  away_team: string;
+  away_code: string;
+  away_flag: string;
+  date: string;
+}): Promise<WcScoreResult> {
+  const { data, error } = await getSupabase().rpc("update_wc_fixture", {
+    p_match_id: params.match_id,
+    p_home_team: params.home_team,
+    p_home_code: params.home_code,
+    p_home_flag: params.home_flag,
+    p_away_team: params.away_team,
+    p_away_code: params.away_code,
+    p_away_flag: params.away_flag,
+    p_date: params.date,
+  });
+  if (error) return { error: error.message };
+  return data as WcScoreResult;
+}
+
 export async function revertWcMatch(matchId: string): Promise<WcScoreResult> {
   const { data, error } = await getSupabase().rpc("revert_wc_match", {
     p_match_id: matchId,
