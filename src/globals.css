@@ -35,3 +35,30 @@ body {
   color: var(--foreground);
   font-family: var(--font-body), sans-serif;
 }
+
+/* Moldura lendária: dodecágono (12 lados) girando + gradiente deslizando. */
+@keyframes cosmetic-frame-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes cosmetic-frame-slide {
+  0% {
+    background-position: 0% 50%;
+  }
+  100% {
+    background-position: 200% 50%;
+  }
+}
+
+.cosmetic-frame-octagon {
+  clip-path: polygon(
+    50% 0%, 75% 6.7%, 93.3% 25%, 100% 50%, 93.3% 75%, 75% 93.3%,
+    50% 100%, 25% 93.3%, 6.7% 75%, 0% 50%, 6.7% 25%, 25% 6.7%
+  );
+  background-size: 200% 200%;
+  animation:
+    cosmetic-frame-spin 8s linear infinite,
+    cosmetic-frame-slide 3s linear infinite;
+}

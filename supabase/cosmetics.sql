@@ -34,8 +34,11 @@ create table if not exists cosmetics (
   season      text,
   payload     jsonb not null default '{}'::jsonb,
   active      boolean not null default true,
+  available_until timestamptz,  -- null = sem prazo; senão some da loja após a data
   sort        integer not null default 0
 );
+
+alter table cosmetics add column if not exists available_until timestamptz;
 
 alter table cosmetics enable row level security;
 drop policy if exists "cosmetics: authenticated can read" on cosmetics;
@@ -50,17 +53,28 @@ insert into cosmetics (key, slot, title, description, price, rarity, season, pay
   ('frame_rose',   'avatar_frame', 'Moldura Rosé',    'Anel rosa suave.',                                    40,  'comum',    null,   '{"ring":"solid","color":"#ec4899"}', 2),
   ('frame_neon',   'avatar_frame', 'Moldura Neon',    'Gradiente violeta→rosa vibrante.',                    100, 'raro',     null,   '{"ring":"gradient","from":"#a78bfa","to":"#ec4899"}', 3),
   ('frame_ocean',  'avatar_frame', 'Moldura Oceano',  'Gradiente ciano→azul.',                               100, 'raro',     null,   '{"ring":"gradient","from":"#22d3ee","to":"#3b82f6"}', 4),
-  ('frame_fire',   'avatar_frame', 'Moldura Fogo',    'Gradiente âmbar→vermelho pulsante.',                  250, 'lendario', null,   '{"ring":"gradient","from":"#f59e0b","to":"#ef4444","animate":true}', 5),
+  ('frame_fire',   'avatar_frame', 'Moldura Fogo',    'Gradiente amarelo→vermelho pulsante.',                250, 'lendario', null,   '{"ring":"gradient","from":"#fde047","to":"#dc2626","animate":true}', 5),
   ('frame_copa',   'avatar_frame', 'Moldura Copa 2026', 'Verde-amarelo comemorativo da Copa. Edição limitada.', 250, 'lendario', 'copa', '{"ring":"gradient","from":"#16a34a","to":"#facc15","animate":true}', 6),
   -- Estilos de nome (name_style). payload.color (sólido) OU payload.gradient [a,b].
   ('name_gold',    'name_style',   'Nome Dourado',    'Seu nick em dourado.',                                40,  'comum',    null,   '{"color":"#f59e0b"}', 10),
   ('name_violet',  'name_style',   'Nome Violeta',    'Seu nick em violeta.',                                40,  'comum',    null,   '{"color":"#a78bfa"}', 11),
   ('name_sunset',  'name_style',   'Nome Pôr do Sol', 'Gradiente laranja→rosa no nick.',                     100, 'raro',     null,   '{"gradient":["#fb923c","#ec4899"]}', 12),
-  ('name_aurora',  'name_style',   'Nome Aurora',     'Gradiente verde→ciano→violeta.',                      250, 'lendario', null,   '{"gradient":["#34d399","#22d3ee","#a78bfa"]}', 13)
+  ('name_aurora',  'name_style',   'Nome Aurora',     'Gradiente verde→ciano→violeta deslizando.',           250, 'lendario', null,   '{"gradient":["#34d399","#22d3ee","#a78bfa"],"animate":true}', 13),
+  ('name_copa',    'name_style',   'Nome Copa 2026',  'Verde-amarelo deslizante da Copa. Edição limitada.',  250, 'lendario', 'copa', '{"gradient":["#16a34a","#facc15"],"animate":true}', 14)
 on conflict (key) do update set
   slot = excluded.slot, title = excluded.title, description = excluded.description,
   price = excluded.price, rarity = excluded.rarity, season = excluded.season,
   payload = excluded.payload, sort = excluded.sort;
+
+-- Edição Pride (arco-íris) — limitada até 10/jul/2026.
+-- Deveria ter sido de junho (mês do Orgulho), mas a feature não ficou pronta a tempo.
+insert into cosmetics (key, slot, title, description, price, rarity, season, payload, available_until, sort) values
+  ('frame_pride', 'avatar_frame', 'Moldura Pride',   'Arco-íris do Orgulho girando. Era pra ser exclusiva de junho (mês do Orgulho), mas a feature não ficou pronta a tempo — então vai até 10/jul. Edição limitada.', 250, 'lendario', 'pride', '{"ring":"gradient","gradient":["#f76b6b","#f7a35b","#f2d661","#5cc98a","#5b9bf2","#9b6fd0","#d76bb0"],"animate":true}', '2026-07-10 23:59:59-03', 7),
+  ('name_pride',  'name_style',   'Nome Pride',      'Arco-íris do Orgulho deslizando no nick. Era pra ser exclusiva de junho (mês do Orgulho), mas a feature não ficou pronta a tempo — então vai até 10/jul. Edição limitada.', 250, 'lendario', 'pride', '{"gradient":["#f76b6b","#f7a35b","#f2d661","#5cc98a","#5b9bf2","#9b6fd0","#d76bb0"],"animate":true}', '2026-07-10 23:59:59-03', 15)
+on conflict (key) do update set
+  slot = excluded.slot, title = excluded.title, description = excluded.description,
+  price = excluded.price, rarity = excluded.rarity, season = excluded.season,
+  payload = excluded.payload, available_until = excluded.available_until, sort = excluded.sort;
 
 -- ─────────────────────────────────────────────
 -- cosmetic_ledger — posse como ledger derivado (espelha powerup_ledger).

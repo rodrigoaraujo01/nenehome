@@ -1312,6 +1312,7 @@ export async function getCosmetics(): Promise<Cosmetic[]> {
     .from("cosmetics")
     .select("*")
     .eq("active", true)
+    .or(`available_until.is.null,available_until.gt.${new Date().toISOString()}`)
     .order("sort");
   if (error || !data) return [];
   return data as Cosmetic[];

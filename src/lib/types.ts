@@ -162,6 +162,7 @@ export interface Cosmetic {
   season: string | null;
   payload: CosmeticPayload;
   active: boolean;
+  available_until: string | null;
   sort: number;
 }
 

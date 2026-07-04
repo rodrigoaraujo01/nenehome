@@ -70,11 +70,21 @@ export function useCosmetics(): CosmeticsContextValue {
 export function nameStyleCss(p: CosmeticPayload | null): React.CSSProperties {
   if (!p) return {};
   if (p.gradient && p.gradient.length > 0) {
+    // Lendária (animate): repete a 1ª cor no fim pra o slide fazer loop sem emenda.
+    const stops = p.animate ? [...p.gradient, p.gradient[0]] : p.gradient;
     return {
-      backgroundImage: `linear-gradient(90deg, ${p.gradient.join(", ")})`,
+      // inline-block: o gradiente dimensiona ao texto, não à caixa (que pode ser
+      // larga, ex. flex-1 no ranking) — senão o degradê some sobre o nome curto.
+      display: "inline-block",
+      backgroundImage: `linear-gradient(90deg, ${stops.join(", ")})`,
+      backgroundSize: p.animate ? "200% auto" : undefined,
       WebkitBackgroundClip: "text",
       backgroundClip: "text",
+      WebkitTextFillColor: "transparent",
       color: "transparent",
+      animation: p.animate
+        ? "cosmetic-frame-slide 3s linear infinite"
+        : undefined,
     };
   }
   if (p.color) return { color: p.color };

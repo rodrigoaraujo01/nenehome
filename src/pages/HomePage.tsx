@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/Card";
 import { CurrencyBadge } from "@/components/CurrencyBadge";
 import { PushBanner } from "@/components/PushBanner";
 import { useAuth } from "@/hooks/useAuth";
+import { useCosmetics, nameStyleCss } from "@/hooks/useCosmetics";
 import { useNudges } from "@/hooks/useNudges";
 import { getLeaderboard, getNenecoinBalance, getGiftMessages } from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
@@ -17,6 +18,7 @@ const DISMISSED_KEY = "dismissed_gift_messages";
 
 export default function Home() {
   const { profile, loading } = useAuth();
+  const { frameFor, nameStyleFor } = useCosmetics();
   const { nudges, loading: nudgesLoading } = useNudges(profile?.id);
   const navigate = useNavigate();
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -77,10 +79,13 @@ export default function Home() {
               spriteUrl={currentMember?.spriteUrl ?? profile.avatar_url}
               nickname={profile.nickname}
               size={64}
+              frame={frameFor(profile.nickname)}
             />
             <div>
               <p className="text-muted text-sm">Olá,</p>
-              <p className="text-2xl font-bold">{profile.nickname}</p>
+              <p className="text-2xl font-bold" style={nameStyleCss(nameStyleFor(profile.nickname))}>
+                {profile.nickname}
+              </p>
               {userRank && (
                 <p className="text-muted text-xs">#{userRank} no ranking</p>
               )}
@@ -254,14 +259,17 @@ export default function Home() {
                         <Avatar
                           spriteUrl={member?.spriteUrl ?? r.avatar_url}
                           nickname={r.nickname}
-                          size={32}
+                          size={44}
+                          frame={frameFor(r.nickname)}
                         />
                         <span
                           className={`font-semibold flex-1 ${
                             isUser ? "text-accent" : ""
                           }`}
                         >
-                          {r.nickname}
+                          <span style={nameStyleCss(nameStyleFor(r.nickname))}>
+                            {r.nickname}
+                          </span>
                         </span>
                         <span className="text-sm text-muted">
                           {r.total_points}pts
