@@ -14,7 +14,8 @@ alter table nenecoins_ledger add constraint nenecoins_ledger_tx_type_check
     'gift_sent', 'gift_received',
     'fire_conversion_out', 'fire_conversion_in',
     'wc_bet_placed', 'wc_bet_won', 'wc_bet_refund', 'wc_bet_clawback',
-    'powerup_purchase', 'question_bet_placed', 'question_bet_won'
+    'powerup_purchase', 'question_bet_placed', 'question_bet_won',
+    'cosmetic_purchase'
   ));
 
 -- ─────────────────────────────────────────────
@@ -292,8 +293,8 @@ begin
     return json_build_object('error', 'Você já respondeu');
   end if;
   if exists (select 1 from question_assists
-             where question_id = p_question_id and user_id = v_user_id and kind = 'eliminate') then
-    return json_build_object('error', 'Você já usou eliminar nesta pergunta');
+             where question_id = p_question_id and user_id = v_user_id) then
+    return json_build_object('error', 'Você só pode usar um poder por pergunta');
   end if;
   if powerup_qty(v_user_id, 'eliminate') < 1 then
     return json_build_object('error', 'Sem Eliminar Alternativa no inventário');
@@ -600,7 +601,7 @@ begin
      and powerup_qty(v_user_id, 'second_chance') >= 1
      and not exists (
        select 1 from question_assists
-       where question_id = p_question_id and user_id = v_user_id and kind = 'second_chance'
+       where question_id = p_question_id and user_id = v_user_id
      )
   then
     insert into question_assists (question_id, user_id, kind)

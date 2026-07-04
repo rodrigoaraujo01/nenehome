@@ -110,12 +110,22 @@ export async function getOrCreateProfile(
 // ─── Leaderboard ──────────────────────────────────────────────────────────────
 
 export async function getLeaderboard(): Promise<LeaderboardEntry[]> {
-  const { data, error } = await getSupabase()
-    .from("member_points")
-    .select("*");
+  const [pointsRes, coinsRes] = await Promise.all([
+    getSupabase().from("member_points").select("*"),
+    getSupabase().from("nenecoin_balances").select("user_id, nenecoin_balance"),
+  ]);
 
-  if (error || !data) return [];
-  return data as LeaderboardEntry[];
+  if (pointsRes.error || !pointsRes.data) return [];
+
+  const coinsByUser = new Map<string, number>();
+  for (const row of coinsRes.data ?? []) {
+    coinsByUser.set(row.user_id, Number(row.nenecoin_balance ?? 0));
+  }
+
+  return (pointsRes.data as LeaderboardEntry[]).map((entry) => ({
+    ...entry,
+    nenecoin_balance: coinsByUser.get(entry.user_id) ?? 0,
+  }));
 }
 
 // ─── Questions ────────────────────────────────────────────────────────────────

@@ -271,8 +271,13 @@ export default function Home() {
                             {r.nickname}
                           </span>
                         </span>
-                        <span className="text-sm text-muted">
-                          {r.total_points}pts
+                        <span className="text-right leading-tight">
+                          <span className="block text-sm text-white">
+                            {r.total_points}pts
+                          </span>
+                          <span className="block text-xs text-muted">
+                            {r.nenecoin_balance} nc
+                          </span>
                         </span>
                       </Link>
                     );

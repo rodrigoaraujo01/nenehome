@@ -735,8 +735,10 @@ export default function PerguntaPage() {
           {!isSettled && (() => {
             const canAnswer = !isCreator && !alreadyAnswered && !result;
             const isMC = question.type === "multiple_choice";
-            const showEliminate = canAnswer && isMC && !eliminatedOptionId;
-            const showSecondChance = canAnswer && !secondChanceUsed;
+            // só 1 poder por pergunta: usar um esconde o outro
+            const usedEliminate = !!eliminatedOptionId;
+            const showEliminate = canAnswer && isMC && !usedEliminate && !useSecondChance && !secondChanceUsed;
+            const showSecondChance = canAnswer && !secondChanceUsed && !usedEliminate;
             const showSabotage = isMC && !isCreator;
             if (!showEliminate && !showSecondChance && !showSabotage && !powerupMsg)
               return null;

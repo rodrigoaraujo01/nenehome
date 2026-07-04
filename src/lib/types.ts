@@ -99,6 +99,7 @@ export interface LeaderboardEntry {
   avatar_url: string | null;
   couple_group: number;
   total_points: number;
+  nenecoin_balance: number;
 }
 
 export interface AnswerResult {
