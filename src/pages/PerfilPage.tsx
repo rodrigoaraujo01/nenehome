@@ -17,6 +17,7 @@ import {
   getNenecoinHistory,
 } from "@/lib/supabase/queries";
 import { useAuth } from "@/hooks/useAuth";
+import { useCosmetics, nameStyleCss } from "@/hooks/useCosmetics";
 import { getSupabase } from "@/lib/supabase/client";
 import type { ProfileStats, DbAchievement, NenecoinBalance, PointsLogEntry, NenecoinLedgerEntry } from "@/lib/types";
 
@@ -48,6 +49,10 @@ const TX_LABELS: Record<string, string> = {
   wc_bet_won:           "Aposta Copa 2026 ganha",
   wc_bet_refund:        "Reembolso Copa 2026",
   wc_bet_clawback:      "Reversão Copa 2026",
+  powerup_purchase:     "Compra na loja",
+  question_bet_placed:  "Aposta em pergunta",
+  question_bet_won:     "Aposta em pergunta ganha",
+  cosmetic_purchase:    "Cosmético comprado",
 };
 
 function NenecoinHistory({ entries }: { entries: NenecoinLedgerEntry[] }) {
@@ -172,6 +177,7 @@ async function getProfileIdByNickname(nickname: string): Promise<string | null> 
 export default function PerfilPage() {
   const { nickname = "" } = useParams<{ nickname: string }>();
   const { profile: currentUser, signOut } = useAuth();
+  const { frameFor, nameStyleFor } = useCosmetics();
   const [stats, setStats] = useState<ProfileStats | null>(null);
   const [loadingStats, setLoadingStats] = useState(true);
   const [achievements, setAchievements] = useState<DbAchievement[]>([]);
@@ -261,9 +267,16 @@ export default function PerfilPage() {
             <span>‹</span>
             <span className="text-sm font-bold text-foreground">Início</span>
           </Link>
-          <Avatar spriteUrl={member.spriteUrl} nickname={member.nickname} size={120} />
+          <Avatar
+            spriteUrl={member.spriteUrl}
+            nickname={member.nickname}
+            size={120}
+            frame={frameFor(member.nickname)}
+          />
           <div className="text-center">
-            <h2 className="text-3xl font-bold">{member.nickname}</h2>
+            <h2 className="text-3xl font-bold" style={nameStyleCss(nameStyleFor(member.nickname))}>
+              {member.nickname}
+            </h2>
             <p className="text-muted mt-1">{member.name}</p>
             {isOwnProfile && (
               <span className="text-xs text-accent font-semibold">você</span>

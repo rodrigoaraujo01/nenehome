@@ -138,6 +138,53 @@ export interface BuyPowerupResult {
   error?: string;
 }
 
+// ─── Cosméticos (loja) ──────────────────────────────────────────────────────
+export type CosmeticSlot = "avatar_frame" | "name_style" | "question_flair";
+export type CosmeticRarity = "comum" | "raro" | "lendario";
+
+// payload de render: moldura { ring, color?/from+to, animate? } · nome { color?/gradient? }
+export interface CosmeticPayload {
+  ring?: "solid" | "gradient";
+  color?: string;
+  from?: string;
+  to?: string;
+  animate?: boolean;
+  gradient?: string[];
+}
+
+export interface Cosmetic {
+  key: string;
+  slot: CosmeticSlot;
+  title: string;
+  description: string;
+  price: number;
+  rarity: CosmeticRarity;
+  season: string | null;
+  payload: CosmeticPayload;
+  active: boolean;
+  sort: number;
+}
+
+export interface CosmeticInventoryItem {
+  cosmetic_key: string;
+  equipped: boolean;
+}
+
+export interface EquippedCosmetic {
+  user_id: string;
+  nickname: string;
+  slot: CosmeticSlot;
+  payload: CosmeticPayload;
+}
+
+export interface CosmeticActionResult {
+  success?: boolean;
+  key?: string;
+  slot?: string;
+  nenecoin_balance?: number;
+  error?: string;
+}
+
 export interface SabotageRevenge {
   credits: number;
   saboteurs: string[];

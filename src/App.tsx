@@ -1,6 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import { BottomNav } from "@/components/BottomNav";
 import { NenecoinsInit } from "@/components/NenecoinsInit";
+import { CosmeticsProvider } from "@/hooks/useCosmetics";
 
 import HomePage from "@/pages/HomePage";
 import LoginPage from "@/pages/LoginPage";
@@ -32,7 +33,7 @@ import NotFoundPage from "@/pages/NotFoundPage";
 
 export function App() {
   return (
-    <>
+    <CosmeticsProvider>
       <Routes>
         <Route path="/" element={<HomePage />} />
         <Route path="/login" element={<LoginPage />} />
@@ -64,6 +65,6 @@ export function App() {
       </Routes>
       <BottomNav />
       <NenecoinsInit />
-    </>
+    </CosmeticsProvider>
   );
 }

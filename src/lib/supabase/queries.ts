@@ -27,6 +27,10 @@ import type {
   WcScoreResult,
   QuestionAnswer,
   Powerup,
+  Cosmetic,
+  CosmeticInventoryItem,
+  EquippedCosmetic,
+  CosmeticActionResult,
   PowerupInventoryItem,
   BuyPowerupResult,
   EliminateResult,
@@ -1299,6 +1303,48 @@ export async function saveNotificationPrefs(
       { onConflict: "user_id" },
     );
   if (error) throw error;
+}
+
+// ─── Cosméticos / Loja ─────────────────────────────────────────────────────────
+
+export async function getCosmetics(): Promise<Cosmetic[]> {
+  const { data, error } = await getSupabase()
+    .from("cosmetics")
+    .select("*")
+    .eq("active", true)
+    .order("sort");
+  if (error || !data) return [];
+  return data as Cosmetic[];
+}
+
+export async function getCosmeticInventory(): Promise<CosmeticInventoryItem[]> {
+  const { data, error } = await getSupabase().rpc("get_cosmetic_inventory");
+  if (error || !data) return [];
+  return data as CosmeticInventoryItem[];
+}
+
+export async function getEquippedCosmetics(): Promise<EquippedCosmetic[]> {
+  const { data, error } = await getSupabase().rpc("get_equipped_cosmetics");
+  if (error || !data) return [];
+  return data as EquippedCosmetic[];
+}
+
+export async function buyCosmetic(key: string): Promise<CosmeticActionResult> {
+  const { data, error } = await getSupabase().rpc("buy_cosmetic", { p_key: key });
+  if (error) return { error: error.message };
+  return data as CosmeticActionResult;
+}
+
+export async function equipCosmetic(key: string): Promise<CosmeticActionResult> {
+  const { data, error } = await getSupabase().rpc("equip_cosmetic", { p_key: key });
+  if (error) return { error: error.message };
+  return data as CosmeticActionResult;
+}
+
+export async function unequipSlot(slot: string): Promise<CosmeticActionResult> {
+  const { data, error } = await getSupabase().rpc("unequip_slot", { p_slot: slot });
+  if (error) return { error: error.message };
+  return data as CosmeticActionResult;
 }
 
 // ─── Power-ups / Loja ──────────────────────────────────────────────────────────
