@@ -10,7 +10,7 @@ import { PushBanner } from "@/components/PushBanner";
 import { useAuth } from "@/hooks/useAuth";
 import { useCosmetics, nameStyleCss } from "@/hooks/useCosmetics";
 import { useNudges } from "@/hooks/useNudges";
-import { getLeaderboard, getNenecoinBalance, getGiftMessages } from "@/lib/supabase/queries";
+import { getLeaderboard, getNenecoinBalance, getGiftMessages, settleExpiredQuestions } from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
 import type { LeaderboardEntry, NenecoinBalance, GiftMessage } from "@/lib/types";
 
@@ -39,7 +39,9 @@ export default function Home() {
 
   useEffect(() => {
     if (!profile) return;
-    getLeaderboard().then(setLeaderboard);
+    // Liquida as perguntas vencidas antes de ler o ranking, senão os pontos do
+    // settle só apareceriam no próximo load.
+    settleExpiredQuestions().then(() => getLeaderboard().then(setLeaderboard));
     getNenecoinBalance().then(setBalance);
     getGiftMessages(profile.id).then(setGiftMessages);
   }, [profile]);

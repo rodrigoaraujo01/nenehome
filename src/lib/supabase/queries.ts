@@ -335,6 +335,17 @@ export async function settleQuestion(
   return data as { settled: boolean; difficulty?: string };
 }
 
+// ─── Settle every question past its 48h deadline (idempotent, lazy) ─────────
+// Chamado ao abrir a Home: quem não respondeu conta como erro na dificuldade.
+export async function settleExpiredQuestions(): Promise<{ settled: number }> {
+  const { data, error } = await getSupabase().rpc("settle_expired_questions");
+  if (error) {
+    console.error("settleExpiredQuestions error:", error);
+    return { settled: 0 };
+  }
+  return data as { settled: number };
+}
+
 // ─── Settle a photo challenge after its deadline (idempotent, lazy) ──────────
 export async function settleChallenge(
   challengeId: string,
@@ -1398,14 +1409,15 @@ export async function useEliminateOption(
   return data as EliminateResult;
 }
 
+// Sabota um ou mais alvos de uma vez: 1 token por alvo, tudo-ou-nada.
 export async function deploySabotage(params: {
   question_id: string;
-  target_user_id: string;
+  target_user_ids: string[];
   decoy_text: string;
 }): Promise<SabotageResult> {
-  const { data, error } = await getSupabase().rpc("deploy_sabotage", {
+  const { data, error } = await getSupabase().rpc("deploy_sabotage_multi", {
     p_question_id: params.question_id,
-    p_target_user_id: params.target_user_id,
+    p_target_user_ids: params.target_user_ids,
     p_decoy_text: params.decoy_text,
   });
   if (error) return { error: error.message };

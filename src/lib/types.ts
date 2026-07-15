@@ -84,6 +84,8 @@ export interface DbQuestion {
   points_creator: number;
   points_correct: number;
   closed_at: string | null;
+  // 48h após a criação; quem não responde até lá conta como erro no settle
+  deadline: string | null;
   created_at: string;
   // joined
   creator?: DbProfile;
@@ -205,6 +207,7 @@ export interface EliminateResult {
 
 export interface SabotageResult {
   success?: boolean;
+  planted?: number;
   qty?: number;
   error?: string;
 }

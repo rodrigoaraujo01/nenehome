@@ -21,6 +21,22 @@ const DIFFICULTY_BADGE: Record<string, string> = {
   impossible: "💀 Impossível",
 };
 
+function getTimeLeft(deadline: string): string {
+  const diff = new Date(deadline).getTime() - Date.now();
+  if (diff <= 0) return "Prazo encerrado";
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  if (days > 1) return `${days} dias restantes`;
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  if (hours > 0) return `${hours}h restantes`;
+  const mins = Math.floor(diff / (1000 * 60));
+  return `${mins}min restantes`;
+}
+
+function isUrgent(deadline: string): boolean {
+  const diff = new Date(deadline).getTime() - Date.now();
+  return diff > 0 && diff <= 1000 * 60 * 60 * 12;
+}
+
 function ArrowIcon() {
   return (
     <svg
@@ -53,6 +69,7 @@ export function QuestionCard({ question, variant }: QuestionCardProps) {
   const difficulty = closed && question.difficulty
     ? DIFFICULTY_BADGE[question.difficulty]
     : null;
+  const deadline = !closed && question.deadline ? question.deadline : null;
 
   const cardClass = [
     "bg-surface border rounded-2xl p-4 transition-colors",
@@ -149,7 +166,7 @@ export function QuestionCard({ question, variant }: QuestionCardProps) {
             </div>
             {isAnswerMode && (
               <p className="text-[11px] text-muted mt-2">
-                Pontos liberam quando todo mundo responder.
+                Pontos liberam quando todo mundo responder — ou no fim do prazo.
               </p>
             )}
           </div>
@@ -168,8 +185,13 @@ export function QuestionCard({ question, variant }: QuestionCardProps) {
               </span>
             </div>
           )}
-          <span className="text-xs text-muted ml-auto">
-            {answerCount} {answerCount === 1 ? "resposta" : "respostas"}
+          <span className="text-xs text-muted ml-auto flex items-center gap-2">
+            {deadline && (
+              <span className={isUrgent(deadline) ? "text-yellow-400 font-semibold" : ""}>
+                ⏳ {getTimeLeft(deadline)}
+              </span>
+            )}
+            <span>{answerCount} {answerCount === 1 ? "resposta" : "respostas"}</span>
           </span>
         </div>
       </div>

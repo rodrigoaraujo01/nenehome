@@ -133,9 +133,10 @@ export default function RegrasPage() {
                   Pontos por acerto
                 </p>
                 <p>
-                  Quem acerta recebe pontos só quando todo mundo responder. Aí a
-                  pergunta ganha uma dificuldade conforme a taxa de acerto do
-                  grupo:
+                  Toda pergunta fica 48h no ar. Quem acerta recebe pontos quando
+                  todo mundo responder — ou quando o prazo vence, o que vier
+                  primeiro. Aí a pergunta ganha uma dificuldade conforme a taxa
+                  de acerto do grupo:
                 </p>
                 <div className="flex gap-2 flex-wrap mt-2">
                   <Tag>Fácil = +5 pts</Tag>
@@ -151,6 +152,11 @@ export default function RegrasPage() {
                   Se a pergunta for difícil, quem criou ganha +10 pontos de
                   bônus. Se ninguém acertar, ela vira impossível e o criador
                   perde o bônus de criação da pergunta.
+                </p>
+                <p className="mt-2">
+                  Quem deixa o prazo passar sem responder conta como erro no
+                  cálculo da dificuldade — não perde pontos, mas deixa a
+                  pergunta mais difícil pra quem acertou.
                 </p>
               </div>
             </div>

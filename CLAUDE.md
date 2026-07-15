@@ -35,7 +35,7 @@ Membros submetem conteúdo para os outros responderem. Dois formatos:
 - **Histórias**: um membro conta uma história sobre si ou sobre alguém do grupo; os outros adivinham de quem se trata.
 - **Enigmas / Múltipla Escolha**: um membro escreve uma charada ou piada com alternativas; os outros escolhem a resposta certa.
 
-**Pontos para**: o criador da pergunta (por submeter — ver "premium diário") + quem responder corretamente (payout dinâmico por dificuldade, liquidado quando todos respondem — ver "Sistema de Pontos").
+**Pontos para**: o criador da pergunta (por submeter — ver "premium diário") + quem responder corretamente (payout dinâmico por dificuldade, liquidado quando todos respondem ou no fim do prazo de 48h — ver "Sistema de Pontos").
 
 ### 2. Submissão de Fotos (com votação do grupo)
 
@@ -86,9 +86,16 @@ Dados importados da ferramenta local de análise do grupo do WhatsApp, recompens
 
 - Cada membro tem **1 pergunta "premium" por dia** (fuso `America/Sao_Paulo`): a 1ª criada no dia vale **+20**; as seguintes valem o padrão **+5** (`create_question`).
 
+#### Prazo de 48h (perguntas)
+
+- `questions.deadline` = `created_at + 48h`, fixo e global (preenchido por `create_question`).
+- Vencido o prazo, quem **não respondeu conta como erro** no cálculo da dificuldade: entra só no **denominador** (`v_no_shows = elegíveis − respostas`). Não perde pontos e não gera linha em `answers`.
+- Caso especial: pergunta que vence com **zero respostas** vira `impossible`, mas o criador **mantém** o bônus de criação — ninguém tentou, então não é culpa dele.
+- O settle pós-prazo é **preguiçoso**: `settle_expired_questions()` varre as vencidas e roda quando **alguém abre a Home** (antes de ler o ranking). Idempotente; a página da pergunta também chama `settle_question` ao abrir.
+
 #### Payout dinâmico por dificuldade (perguntas)
 
-- Os pontos de quem acerta **não são concedidos na hora** — ficam pendentes até a pergunta ser **liquidada** (`settle_question`), o que ocorre quando **todos os elegíveis** responderam.
+- Os pontos de quem acerta **não são concedidos na hora** — ficam pendentes até a pergunta ser **liquidada** (`settle_question`), o que ocorre quando **todos os elegíveis** responderam **ou quando o prazo de 48h vence** (o que vier primeiro).
 - A dificuldade é definida pelo **% de acertos** entre os respondentes, e define o payout por acerto: **Fácil 5 / Médio 12 / Difícil 20**.
 - Pergunta **impossível** (0 acertos): o criador **perde o bônus de criação** (net zero, nunca negativo).
 - Pergunta **difícil** (com acertos): o criador ganha **+10** (`question_hard_bonus`).
@@ -135,14 +142,14 @@ Sink de nenecoins (motivado pelo acúmulo por causa do Bolão da Copa). Modelo *
 
 - **Eliminar Alternativa** (`use_eliminate_option`, 30) — remove 1 alternativa errada de uma MC; cap 1/pergunta; marca a resposta como `assisted`.
 - **Segunda Chance** (40) — ao confirmar, se errar, descarta a tentativa (não persiste, não liquida) e libera nova resposta; marca `assisted`. Implementado via flag em `submit_answer`.
-- **Sabotagem** (`deploy_sabotage`, 30) — injeta uma 5ª alternativa falsa (texto do saboteur) numa MC, só para um alvo que ainda não respondeu. Entregue via `get_question_sabotage` (não vaza que é falsa); ao escolhê-la conta como erro (`question_sabotages.hit`). **Contra-golpe**: quem foi sabotado ganha 1 crédito de revanche (`sabotage_revenge`) que dá **50% de desconto** na compra de Sabotagem (aplicado automático em `buy_powerup`). O crédito é gerado só quando a vítima **responde** (em `submit_answer`) — antes disso revelaria o decoy. Banner pós-resposta via `get_my_sabotage`; saldo de revanche via `get_sabotage_revenge`.
+- **Sabotagem** (`deploy_sabotage_multi`, 30) — injeta uma 5ª alternativa falsa (texto do saboteur) numa MC, só para alvos que ainda não responderam. **Multi-alvo**: dá pra sabotar vários membros de uma vez com o mesmo decoy, custando **1 token por alvo** (tudo-ou-nada — alvo inválido ou token faltando aborta tudo). 1 sabotagem por alvo/pergunta (`unique (question_id, target_user_id)`). Entregue via `get_question_sabotage` (não vaza que é falsa); ao escolhê-la conta como erro (`question_sabotages.hit`). **Contra-golpe**: quem foi sabotado ganha 1 crédito de revanche (`sabotage_revenge`) que dá **50% de desconto** na compra de Sabotagem (aplicado automático em `buy_powerup`). O crédito é gerado só quando a vítima **responde** (em `submit_answer`) — antes disso revelaria o decoy. Banner pós-resposta via `get_my_sabotage`; saldo de revanche via `get_sabotage_revenge`.
 - **Revelar Distribuição** (`reveal_wc_distribution`, 30) — destrava a distribuição **anônima** dos palpites de um jogo da Copa antes do fechamento.
 
 ### Aposta de coins na pergunta (sem power-up)
 
 Dinâmica nativa (estilo bolão): ao responder, o membro pode apostar nenecoins (`answers.coins_wagered`, debitado no submit via `question_bet_placed`). No settle, se acertou, recebe `stake × multiplicador da dificuldade` (`question_bet_won`): **Fácil 1.5× · Médio 2× · Difícil 3×**; **Impossível não paga** (consistente com os pontos). Errou → perde o stake. A aposta atrela-se à resposta final (Segunda Chance não cobra a tentativa descartada). Substituiu o antigo power-up "Dobro ou Nada".
 
-Fair play: `answers.assisted` é **excluído** do %-de-acertos que define a dificuldade (Fácil/Médio/Difícil), então power-ups não distorcem o payout de todos. Tabelas auxiliares: `powerups`, `powerup_ledger`, `question_assists`, `question_sabotages`, `wc_distribution_reveals`. SQL em `supabase/powerups.sql` (**novo "rodar por último"**, depois de `scoring_v2.sql` — redefine `submit_answer` e `settle_question`).
+Fair play: `answers.assisted` é **excluído** do %-de-acertos que define a dificuldade (Fácil/Médio/Difícil), então power-ups não distorcem o payout de todos. Tabelas auxiliares: `powerups`, `powerup_ledger`, `question_assists`, `question_sabotages`, `wc_distribution_reveals`. SQL em `supabase/powerups.sql` (depois de `scoring_v2.sql` — redefine `submit_answer` e `settle_question`), depois `limit_one_powerup_per_question.sql` e por fim **`question_deadline_and_multi_sabotage.sql`** (o atual "rodar por último": redefine `create_question` e `settle_question`, adiciona `settle_expired_questions` e `deploy_sabotage_multi`).
 
 ### Firecoins
 

@@ -40,6 +40,16 @@ const DIFFICULTY: Record<
   impossible: { label: "Impossível", emoji: "💀", cls: "text-muted" },
 };
 
+function timeLeft(deadline: string): string {
+  const diff = new Date(deadline).getTime() - Date.now();
+  if (diff <= 0) return "Prazo encerrado";
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  if (days > 1) return `${days} dias restantes`;
+  const hours = Math.floor(diff / (1000 * 60 * 60));
+  if (hours > 0) return `${hours}h restantes`;
+  return `${Math.floor(diff / (1000 * 60))}min restantes`;
+}
+
 export default function PerguntaPage() {
   const { id } = useParams<{ id: string }>();
   const { profile, loading } = useAuth();
@@ -65,7 +75,8 @@ export default function PerguntaPage() {
   const [powerupMsg, setPowerupMsg] = useState<string | null>(null);
   const [powerupBusy, setPowerupBusy] = useState(false);
   const [sabotageOpen, setSabotageOpen] = useState(false);
-  const [sabotageTarget, setSabotageTarget] = useState<string | null>(null);
+  // multi-alvo: 1 token de Sabotagem por alvo selecionado
+  const [sabotageTargets, setSabotageTargets] = useState<string[]>([]);
   const [sabotageText, setSabotageText] = useState("");
   const [sabotageBusy, setSabotageBusy] = useState(false);
   const [sabotageError, setSabotageError] = useState<string | null>(null);
@@ -234,11 +245,13 @@ export default function PerguntaPage() {
 
   // Garante que o usuário tem ao menos 1 do poder, comprando na hora se preciso.
   // Retorna uma mensagem de erro (ou null em caso de sucesso).
-  async function ensureOwned(key: string): Promise<string | null> {
-    if ((inventory[key] ?? 0) > 0) return null;
-    const res = await buyPowerup(key, 1);
+  // Compra o que faltar pra ter `qty` no inventário (Sabotagem gasta 1 por alvo).
+  async function ensureOwned(key: string, qty = 1): Promise<string | null> {
+    const missing = qty - (inventory[key] ?? 0);
+    if (missing <= 0) return null;
+    const res = await buyPowerup(key, missing);
     if (res.error) return res.error;
-    setInventory((inv) => ({ ...inv, [key]: res.qty ?? (inv[key] ?? 0) + 1 }));
+    setInventory((inv) => ({ ...inv, [key]: res.qty ?? (inv[key] ?? 0) + missing }));
     if (res.nenecoin_balance != null) {
       const bal = res.nenecoin_balance;
       setBalance((b) => (b ? { ...b, nenecoin_balance: bal } : b));
@@ -286,10 +299,11 @@ export default function PerguntaPage() {
   }
 
   async function handleSabotage() {
-    if (!question || !sabotageTarget || !sabotageText.trim()) return;
+    if (!question || sabotageTargets.length === 0 || !sabotageText.trim()) return;
+    const n = sabotageTargets.length;
     setSabotageBusy(true);
     setSabotageError(null);
-    const buyErr = await ensureOwned("sabotage");
+    const buyErr = await ensureOwned("sabotage", n);
     if (buyErr) {
       setSabotageBusy(false);
       setSabotageError(buyErr);
@@ -297,7 +311,7 @@ export default function PerguntaPage() {
     }
     const res = await deploySabotage({
       question_id: question.id,
-      target_user_id: sabotageTarget,
+      target_user_ids: sabotageTargets,
       decoy_text: sabotageText.trim(),
     });
     setSabotageBusy(false);
@@ -307,12 +321,16 @@ export default function PerguntaPage() {
     }
     setInventory((inv) => ({
       ...inv,
-      sabotage: Math.max(0, (inv.sabotage ?? 1) - 1),
+      sabotage: res.qty ?? Math.max(0, (inv.sabotage ?? n) - n),
     }));
     setSabotageOpen(false);
-    setSabotageTarget(null);
+    setSabotageTargets([]);
     setSabotageText("");
-    setPowerupMsg("😈 Sabotagem plantada! Só o alvo vai ver a alternativa falsa.");
+    setPowerupMsg(
+      n === 1
+        ? "😈 Sabotagem plantada! Só o alvo vai ver a alternativa falsa."
+        : `😈 Sabotagem plantada pra ${n} alvos! Só eles vão ver a alternativa falsa.`,
+    );
   }
 
   async function handleDelete() {
@@ -386,6 +404,9 @@ export default function PerguntaPage() {
                 {question.creator.nickname} ·{" "}
                 {question.answer_count}{" "}
                 {question.answer_count === 1 ? "resposta" : "respostas"}
+                {!isSettled && question.deadline && (
+                  <> · ⏳ {timeLeft(question.deadline)}</>
+                )}
               </span>
             </div>
           )}
@@ -422,8 +443,8 @@ export default function PerguntaPage() {
               )}
               {pointsPending && (
                 <p className="text-sm text-muted mt-1">
-                  🕒 Os pontos saem quando todos responderem — quanto mais difícil
-                  a pergunta, mais vale.
+                  🕒 Os pontos saem quando todos responderem (ou no fim do prazo)
+                  — quanto mais difícil a pergunta, mais vale.
                 </p>
               )}
               {isCorrect && familyOnlyImpossible && (
@@ -931,14 +952,14 @@ export default function PerguntaPage() {
                 <h3 className="text-lg font-bold">😈 Sabotar alguém</h3>
                 <p className="text-xs text-muted mt-1">
                   Plante uma alternativa falsa, escrita por você. Ela entra numa
-                  posição aleatória e só o alvo a verá — e só se ele ainda não
-                  respondeu.
+                  posição aleatória e só os alvos a verão — e só quem ainda não
+                  respondeu. Cada alvo custa uma Sabotagem.
                 </p>
               </div>
 
               <div>
                 <p className="text-xs font-bold text-muted uppercase tracking-wider mb-2">
-                  Alvo
+                  Alvos {sabotageTargets.length > 0 && `(${sabotageTargets.length})`}
                 </p>
                 <div className="grid grid-cols-4 gap-2">
                   {adults
@@ -946,11 +967,17 @@ export default function PerguntaPage() {
                       (a) => a.id !== profile.id && a.id !== question.creator_id
                     )
                     .map((a) => {
-                      const selected = sabotageTarget === a.id;
+                      const selected = sabotageTargets.includes(a.id);
                       return (
                         <button
                           key={a.id}
-                          onClick={() => setSabotageTarget(a.id)}
+                          onClick={() =>
+                            setSabotageTargets((prev) =>
+                              prev.includes(a.id)
+                                ? prev.filter((t) => t !== a.id)
+                                : [...prev, a.id],
+                            )
+                          }
                           className={`flex flex-col items-center gap-1.5 p-2 rounded-xl border transition-colors ${
                             selected
                               ? "border-purple bg-purple/10"
@@ -982,6 +1009,39 @@ export default function PerguntaPage() {
                 />
               </div>
 
+              {(() => {
+                // 1 token por alvo: o que faltar no inventário é comprado na hora
+                const n = sabotageTargets.length;
+                const owned = inventory.sabotage ?? 0;
+                const price = catalog.sabotage?.price;
+                const missing = Math.max(0, n - owned);
+                const cost = price != null ? missing * price : null;
+                const coins = balance?.nenecoin_balance ?? 0;
+                const tooPoor = cost != null && cost > coins;
+                if (n === 0) return null;
+                return (
+                  <div className="rounded-xl border border-border bg-surface-light px-3 py-2.5 space-y-1">
+                    <p className="text-xs">
+                      {n} {n === 1 ? "alvo" : "alvos"} · custa {n}{" "}
+                      {n === 1 ? "Sabotagem" : "Sabotagens"} · você tem {owned}
+                    </p>
+                    {missing > 0 && cost != null && (
+                      <p className={`text-xs ${tooPoor ? "text-red-400" : "text-muted"}`}>
+                        Comprar {missing} × {price} = <strong>{cost} 🪙</strong>{" "}
+                        {tooPoor
+                          ? `· saldo insuficiente (${coins})`
+                          : `· saldo ${coins} → ${coins - cost}`}
+                      </p>
+                    )}
+                    {missing === 0 && (
+                      <p className="text-xs text-muted">
+                        Sai do inventário, sem gastar nenecoins.
+                      </p>
+                    )}
+                  </div>
+                );
+              })()}
+
               {sabotageError && (
                 <p className="text-xs text-red-400">{sabotageError}</p>
               )}
@@ -994,17 +1054,29 @@ export default function PerguntaPage() {
                 >
                   Cancelar
                 </Button>
-                <Button
-                  onClick={handleSabotage}
-                  disabled={!sabotageTarget || !sabotageText.trim() || sabotageBusy}
-                  className="flex-1"
-                >
-                  {sabotageBusy
-                    ? "..."
-                    : (inventory.sabotage ?? 0) > 0
-                    ? "Plantar 😈"
-                    : `Plantar 😈 · ${catalog.sabotage?.price ?? ""} 🪙`}
-                </Button>
+                {(() => {
+                  const n = sabotageTargets.length;
+                  const price = catalog.sabotage?.price;
+                  const missing = Math.max(0, n - (inventory.sabotage ?? 0));
+                  const cost = price != null ? missing * price : null;
+                  const tooPoor =
+                    cost != null && cost > (balance?.nenecoin_balance ?? 0);
+                  return (
+                    <Button
+                      onClick={handleSabotage}
+                      disabled={
+                        n === 0 || !sabotageText.trim() || sabotageBusy || tooPoor
+                      }
+                      className="flex-1"
+                    >
+                      {sabotageBusy
+                        ? "..."
+                        : cost != null && cost > 0
+                        ? `Plantar 😈 · ${cost} 🪙`
+                        : "Plantar 😈"}
+                    </Button>
+                  );
+                })()}
               </div>
             </motion.div>
           </motion.div>
