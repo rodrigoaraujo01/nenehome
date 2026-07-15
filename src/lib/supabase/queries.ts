@@ -40,6 +40,7 @@ import type {
   SabotageRevenge,
   MySabotage,
   QuestionComment,
+  ChallengeBestState,
 } from "@/lib/types";
 import { MEMBERS } from "@/lib/constants";
 
@@ -341,6 +342,53 @@ export async function settleExpiredQuestions(): Promise<{ settled: number }> {
   const { data, error } = await getSupabase().rpc("settle_expired_questions");
   if (error) {
     console.error("settleExpiredQuestions error:", error);
+    return { settled: 0 };
+  }
+  return data as { settled: number };
+}
+
+// ─── Votação da melhor foto (abre no deadline do desafio, dura 48h) ─────────
+
+export async function getChallengeBest(
+  challengeId: string,
+): Promise<ChallengeBestState | null> {
+  const { data, error } = await getSupabase().rpc("get_challenge_best", {
+    p_challenge_id: challengeId,
+  });
+  if (error || !data) return null;
+  return data as ChallengeBestState;
+}
+
+export async function voteBestPhoto(
+  submissionId: string,
+): Promise<{ success?: boolean; error?: string }> {
+  const { data, error } = await getSupabase().rpc("vote_best_photo", {
+    p_submission_id: submissionId,
+  });
+  if (error) return { error: error.message };
+  return data as { success?: boolean; error?: string };
+}
+
+// Apura a melhor foto de um desafio (idempotente, guardado por deadline+48h
+// e best_settled_at no RPC) — chamado ao abrir a página do desafio.
+export async function settleChallengeBest(
+  challengeId: string,
+): Promise<{ settled: boolean; winners?: number }> {
+  const { data, error } = await getSupabase().rpc("settle_challenge_best", {
+    p_challenge_id: challengeId,
+  });
+  if (error) {
+    console.error("settleChallengeBest error:", error);
+    return { settled: false };
+  }
+  return data as { settled: boolean; winners?: number };
+}
+
+// Apura as votações de melhor foto vencidas (idempotente, lazy) — roda na Home.
+export async function settleExpiredChallengeBests(): Promise<{ settled: number }> {
+  const { data, error } = await getSupabase().rpc("settle_expired_challenge_bests");
+  if (error) {
+    console.error("settleExpiredChallengeBests error:", error);
     return { settled: 0 };
   }
   return data as { settled: number };
@@ -1174,11 +1222,14 @@ export interface NudgeCounts {
   activeChallenges: number;
   unpredictedMatches: number;
   questionsCreated: number;
+  openBestVotes: number;
 }
 
 export async function getNudgeCounts(userId: string): Promise<NudgeCounts> {
   const sb = getSupabase();
   const now = new Date().toISOString();
+  // janela da melhor foto: deadline → deadline + 48h
+  const bestWindowStart = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
 
   const [
     activeQuestionsRes,
@@ -1190,6 +1241,9 @@ export async function getNudgeCounts(userId: string): Promise<NudgeCounts> {
     scheduledMatchesRes,
     userPredictionsRes,
     questionsCreatedRes,
+    bestWindowRes,
+    approvedSubsRes,
+    myBestVotesRes,
   ] = await Promise.all([
     sb.from("questions").select("id, creator_id").eq("status", "active"),
     sb.from("answers").select("question_id").eq("user_id", userId),
@@ -1213,6 +1267,18 @@ export async function getNudgeCounts(userId: string): Promise<NudgeCounts> {
       .from("questions")
       .select("id", { count: "exact", head: true })
       .eq("creator_id", userId),
+    sb
+      .from("photo_challenges")
+      .select("id")
+      .is("best_settled_at", null)
+      .lte("deadline", now)
+      .gt("deadline", bestWindowStart),
+    sb
+      .from("photo_submissions")
+      .select("id, challenge_id")
+      .eq("status", "approved")
+      .not("challenge_id", "is", null),
+    sb.from("challenge_best_votes").select("challenge_id").eq("voter_id", userId),
   ]);
 
   const answeredIds = new Set(
@@ -1243,12 +1309,30 @@ export async function getNudgeCounts(userId: string): Promise<NudgeCounts> {
     (m) => !predictedMatchIds.has(m.id),
   ).length;
 
+  // melhor foto: só conta desafio com disputa (2+ aprovadas) em que ainda não votei
+  const approvedPerChallenge = new Map<string, number>();
+  for (const s of approvedSubsRes.data ?? []) {
+    if (!s.challenge_id) continue;
+    approvedPerChallenge.set(
+      s.challenge_id,
+      (approvedPerChallenge.get(s.challenge_id) ?? 0) + 1,
+    );
+  }
+  const myBestVotedIds = new Set(
+    (myBestVotesRes.data ?? []).map((v) => v.challenge_id),
+  );
+  const openBestVotes = (bestWindowRes.data ?? []).filter(
+    (c) =>
+      (approvedPerChallenge.get(c.id) ?? 0) >= 2 && !myBestVotedIds.has(c.id),
+  ).length;
+
   return {
     unansweredQuestions,
     pendingPhotoVotes,
     activeChallenges,
     unpredictedMatches,
     questionsCreated: questionsCreatedRes.count ?? 0,
+    openBestVotes,
   };
 }
 

@@ -182,6 +182,7 @@ export default function RegrasPage() {
               <Tag>Foto aprovada = +20 pts</Tag>
               <Tag>Desafio = +30 pts extras</Tag>
               <Tag>Criar desafio = até +32 pts</Tag>
+              <Tag>🏅 Melhor foto = pontos dobrados</Tag>
             </div>
             <p className="text-xs">
               O criador do desafio define os pontos extras para quem completa
@@ -191,6 +192,20 @@ export default function RegrasPage() {
               Criar desafio também pontua: quando o prazo acaba, o criador ganha
               8 + 3 pontos por participante único que completou o desafio, com
               limite de 8 participantes.
+            </p>
+            <p className="font-semibold text-foreground mt-3 mb-1">
+              🏅 Melhor foto
+            </p>
+            <p className="text-xs">
+              Quando o desafio encerra, abre uma votação de 48h entre as fotos
+              aprovadas pra eleger a melhor. Quem vencer dobra tudo que ganhou
+              naquele desafio — os 20 da foto e os 30 do desafio viram 100 no
+              total. Você não vota na sua própria foto e pode trocar o voto até
+              o fim do prazo.
+            </p>
+            <p className="text-xs">
+              Empate: todos os empatados dobram. Se só uma foto for aprovada, não
+              tem disputa e a votação nem abre.
             </p>
           </Section>
 

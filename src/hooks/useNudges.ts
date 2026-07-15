@@ -30,6 +30,16 @@ function buildNudges(counts: NudgeCounts): Nudge[] {
     });
   }
 
+  // janela curta (48h) e some sozinha: fica na frente dos desafios abertos
+  if (counts.openBestVotes > 0) {
+    const n = counts.openBestVotes;
+    nudges.push({
+      emoji: "🏅",
+      text: `${n} ${n > 1 ? "melhores fotos" : "melhor foto"} para eleger`,
+      to: "/fotos/desafios",
+    });
+  }
+
   if (counts.activeChallenges > 0) {
     const n = counts.activeChallenges;
     nudges.push({

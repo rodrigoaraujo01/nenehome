@@ -5,10 +5,17 @@ import { Link } from "react-router-dom";
 import { Header } from "@/components/Header";
 import { Avatar } from "@/components/Avatar";
 import { PhotoCard } from "@/components/PhotoCard";
+import { BestPhotoVote } from "@/components/BestPhotoVote";
 import { useAuth } from "@/hooks/useAuth";
-import { getChallenge, deletePhotoChallenge, settleChallenge } from "@/lib/supabase/queries";
+import {
+  getChallenge,
+  deletePhotoChallenge,
+  settleChallenge,
+  settleChallengeBest,
+  getChallengeBest,
+} from "@/lib/supabase/queries";
 import { ADULTS } from "@/lib/constants";
-import type { DbPhotoChallenge } from "@/lib/types";
+import type { DbPhotoChallenge, ChallengeBestState } from "@/lib/types";
 
 export default function DesafioDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +23,7 @@ export default function DesafioDetailPage() {
   const navigate = useNavigate();
 
   const [challenge, setChallenge] = useState<DbPhotoChallenge | null>(null);
+  const [best, setBest] = useState<ChallengeBestState | null>(null);
   const [fetching, setFetching] = useState(true);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
@@ -26,16 +34,26 @@ export default function DesafioDetailPage() {
 
   useEffect(() => {
     if (!profile || !id) return;
-    // settle preguiçoso: idempotente e guardado por deadline/settled_at no RPC
-    settleChallenge(id)
+    // settles preguiçosos: idempotentes e guardados por deadline/settled_at nos
+    // RPCs. O da melhor foto só dispara depois de deadline + 48h.
+    Promise.all([settleChallenge(id), settleChallengeBest(id)])
       .catch(() => {})
       .finally(() => {
-        getChallenge(id, profile.id).then((c) => {
-          setChallenge(c);
-          setFetching(false);
-        });
+        Promise.all([getChallenge(id, profile.id), getChallengeBest(id)]).then(
+          ([c, b]) => {
+            setChallenge(c);
+            setBest(b);
+            setFetching(false);
+          },
+        );
       });
   }, [profile, id]);
+
+  // relê só o estado da votação depois de votar (a foto em si não mudou)
+  async function refreshBest() {
+    if (!id) return;
+    setBest(await getChallengeBest(id));
+  }
 
   if (loading || fetching || !profile) {
     return (
@@ -66,6 +84,11 @@ export default function DesafioDetailPage() {
 
   const canSubmit = !isExpired && !isCompleted;
   const isCreator = challenge.creator_id === profile.id;
+  // com a votação em cartaz, as aprovadas já aparecem lá — não duplica a grade
+  const showBest =
+    !!best &&
+    (best.state === "open" ||
+      (best.state === "closed" && best.votes.length > 0));
 
   async function handleDelete() {
     if (!challenge) return;
@@ -228,7 +251,16 @@ export default function DesafioDetailPage() {
             </section>
           )}
 
-          {approvedSubs.length > 0 && (
+          {showBest && best && (
+            <BestPhotoVote
+              submissions={approvedSubs}
+              currentUserId={profile.id}
+              best={best}
+              onVoted={refreshBest}
+            />
+          )}
+
+          {approvedSubs.length > 0 && !showBest && (
             <section>
               <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
                 Fotos aprovadas ({approvedSubs.length})

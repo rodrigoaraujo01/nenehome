@@ -105,7 +105,16 @@ Dados importados da ferramenta local de análise do grupo do WhatsApp, recompens
 
 - O criador ganha um prêmio **liquidado após o `deadline`** (`settle_challenge`, idempotente, disparada de forma preguiçosa ao abrir a página do desafio): **8 + 3 × submitters_únicos** (cap em 8 → 11 a 32), via reason `challenge_created`.
 
-Reasons novos em `points_log`: `question_hard_bonus`, `challenge_created`. SQL canônico em `supabase/scoring_v2.sql`. **Obs.:** `supabase/powerups.sql` agora redefine `submit_answer`/`settle_question` por cima — é o **último** arquivo a rodar (ver Loja de Power-ups).
+#### Votação da melhor foto — pontos dobrados
+
+- Encerrado o desafio (`deadline`), abre uma janela de **48h** pra eleger a melhor entre as fotos **aprovadas** (`vote_best_photo`). Quem vence **dobra os pontos que recebeu naquele desafio**: `photo_approved` da foto vencedora + `challenge_completed` do desafio (20 + 30 → +50, via reason `challenge_best_photo`).
+- A janela é **puramente temporal** (`deadline` → `deadline + 48h`), sem depender de settle: se ela só "abrisse" quando alguém abrisse a página, um desafio esquecido teria a votação aberta e fechada sem ninguém poder votar.
+- 1 voto por pessoa por desafio (`challenge_best_votes`, unique `(challenge_id, voter_id)`); dá pra **trocar o voto** enquanto aberta. Não vota na própria foto.
+- **Empate**: todos os empatados dobram. **Menos de 2 fotos aprovadas**: sem disputa, votação não abre e ninguém dobra. **Zero votos**: ninguém dobra.
+- Apuração `settle_challenge_best` (idempotente, guardada por `best_settled_at`), preguiçosa: `settle_expired_challenge_bests()` roda na Home junto com o sweep de perguntas, e a página do desafio também chama a sua.
+- Vencedora marcada em `photo_submissions.best_photo` (medalha na UI). Desafios que já tinham vencido há mais de 48h quando a feature subiu entraram com `best_settled_at` preenchido no backfill — nunca tiveram janela, e sem isso o primeiro sweep os apuraria com zero votos.
+
+Reasons novos em `points_log`: `question_hard_bonus`, `challenge_created`, `challenge_best_photo`. SQL canônico em `supabase/scoring_v2.sql`; melhor foto em `supabase/best_photo_vote.sql`. **Obs.:** `supabase/powerups.sql` agora redefine `submit_answer`/`settle_question` por cima — é o **último** arquivo a rodar (ver Loja de Power-ups).
 
 ### Conquistas (Achievements)
 
@@ -167,7 +176,7 @@ Fair play: `answers.assisted` é **excluído** do %-de-acertos que define a difi
 ## Funcionalidades por Categoria (estado atual)
 
 - **Perguntas**: criador não pode responder a própria pergunta; criador vê todas as respostas e o resultado; criador pode **deletar** a própria pergunta (wipe completo de respostas/pontos/conquistas).
-- **Fotos / Desafios**: limiar de rejeição = **4** votos; fotos rejeitadas ficam visíveis na página do desafio; criador pode **deletar** um desafio de foto (wipe completo de pontos/conquistas, como se nunca tivesse existido); quem enviou uma foto pode **deletá-la** individualmente (mesmo wipe — pontos de aprovação/desafio, conquistas e arquivo no storage).
+- **Fotos / Desafios**: limiar de rejeição = **4** votos; encerrado o desafio, 48h de votação da melhor foto (ver "Votação da melhor foto"); fotos rejeitadas ficam visíveis na página do desafio; criador pode **deletar** um desafio de foto (wipe completo de pontos/conquistas, como se nunca tivesse existido); quem enviou uma foto pode **deletá-la** individualmente (mesmo wipe — pontos de aprovação/desafio, conquistas e arquivo no storage).
 - **Apostas (bolões)**: criador pode **deletar** um bolão não resolvido (reembolso das apostas).
 - **Princípio geral**: tudo que um membro cria (pergunta, foto, desafio, bolão) ele também pode deletar, sempre com reversão completa de pontos/conquistas via RPC `security definer`.
 

@@ -189,6 +189,24 @@ export interface CosmeticActionResult {
   error?: string;
 }
 
+// ─── Votação da melhor foto do desafio ────────────────────────────────────────
+
+export interface ChallengeBestVote {
+  submission_id: string;
+  votes: number;
+}
+
+export interface ChallengeBestState {
+  // not_open: desafio ainda rolando · no_contest: menos de 2 fotos aprovadas
+  state: "not_open" | "open" | "closed" | "no_contest";
+  opens_at: string;
+  closes_at: string;
+  candidates: number;
+  my_vote: string | null;
+  settled: boolean;
+  votes: ChallengeBestVote[];
+}
+
 export interface SabotageRevenge {
   credits: number;
   saboteurs: string[];
@@ -293,6 +311,8 @@ export interface DbPhotoChallenge {
   starts_at: string;
   deadline: string;
   settled_at: string | null;
+  // apuração da votação de melhor foto (deadline + 48h)
+  best_settled_at: string | null;
   created_at: string;
   creator?: DbProfile;
   completions?: DbPhotoChallengeCompletion[];
@@ -321,6 +341,8 @@ export interface DbPhotoSubmission {
   points_reward: number;
   votes_to_approve: number;
   challenge_id: string | null;
+  // venceu a votação de melhor foto do desafio (dobrou os pontos)
+  best_photo: boolean;
   created_at: string;
   // joined
   submitter?: DbProfile;
