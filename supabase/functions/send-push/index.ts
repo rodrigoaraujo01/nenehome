@@ -121,10 +121,14 @@ function buildFromEvent(event: string, payload: any): Built | null {
       };
     case "question_comment": {
       const result = payload.is_correct === true ? "acertar" : "errar";
+      // o criador não responde a própria pergunta: não tem acerto/erro pra citar
+      const body = payload.is_creator === true
+        ? `${payload.commenter} comentou na própria pergunta`
+        : `${payload.commenter} comentou na pergunta de ${payload.question_creator} depois de ${result}`;
       return {
         notif: {
           title: "Novo comentário 💬",
-          body: `${payload.commenter} comentou na pergunta de ${payload.question_creator} depois de ${result}`,
+          body,
           url: `/perguntas/${payload.question_id}`,
           tag: `question-comment-${payload.comment_id ?? payload.question_id}`,
         },

@@ -175,7 +175,7 @@ Fair play: `answers.assisted` é **excluído** do %-de-acertos que define a difi
 
 ## Funcionalidades por Categoria (estado atual)
 
-- **Perguntas**: criador não pode responder a própria pergunta; criador vê todas as respostas e o resultado; criador pode **deletar** a própria pergunta (wipe completo de respostas/pontos/conquistas).
+- **Perguntas**: criador não pode responder a própria pergunta; criador vê todas as respostas, o resultado e a **conversa** (comentários), e pode comentar — a discussão segue invisível pra quem ainda não respondeu (RLS em `question_comments`, ver `supabase/creator_sees_comments.sql`); criador pode **deletar** a própria pergunta (wipe completo de respostas/pontos/conquistas).
 - **Fotos / Desafios**: limiar de rejeição = **4** votos; encerrado o desafio, 48h de votação da melhor foto (ver "Votação da melhor foto"); fotos rejeitadas ficam visíveis na página do desafio; criador pode **deletar** um desafio de foto (wipe completo de pontos/conquistas, como se nunca tivesse existido); quem enviou uma foto pode **deletá-la** individualmente (mesmo wipe — pontos de aprovação/desafio, conquistas e arquivo no storage).
 - **Apostas (bolões)**: criador pode **deletar** um bolão não resolvido (reembolso das apostas).
 - **Princípio geral**: tudo que um membro cria (pergunta, foto, desafio, bolão) ele também pode deletar, sempre com reversão completa de pontos/conquistas via RPC `security definer`.

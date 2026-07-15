@@ -107,7 +107,7 @@ export default function PerguntaPage() {
         getQuestion(id, profile.id).then(async (q) => {
           setQuestion(q);
           if (q?.my_answer) {
-            // Comentários e respostas só são liberados depois da resposta.
+            // Respostas e conversa só são liberadas depois de responder.
             const [answers, loadedComments, sabotage] = await Promise.all([
               getQuestionAnswers(id),
               getQuestionComments(id),
@@ -117,8 +117,13 @@ export default function PerguntaPage() {
             setComments(loadedComments);
             setMySabotage(sabotage);
           } else if (q?.creator_id === profile.id) {
-            // O criador pode ver as respostas, mas não a conversa dos respondentes.
-            setAllAnswers(await getQuestionAnswers(id));
+            // O criador não responde, mas acompanha tudo na pergunta dele.
+            const [answers, loadedComments] = await Promise.all([
+              getQuestionAnswers(id),
+              getQuestionComments(id),
+            ]);
+            setAllAnswers(answers);
+            setComments(loadedComments);
           }
           // power-ups + saldo: só importa em perguntas ativas
           if (q && q.status !== "closed") {
@@ -681,15 +686,18 @@ export default function PerguntaPage() {
             </section>
           )}
 
-          {/* Answer-gated discussion. RLS also enforces this on the server. */}
-          {(alreadyAnswered || !!result) && (
+          {/* Conversa liberada pra quem respondeu + o criador. RLS também garante
+              isso no servidor. */}
+          {(alreadyAnswered || !!result || isCreator) && (
             <section className="space-y-3 border-t border-border pt-5">
               <div>
                 <p className="text-xs font-bold text-muted uppercase tracking-wider">
                   Comentários ({comments.length})
                 </p>
                 <p className="text-[11px] text-muted mt-1">
-                  Só quem respondeu esta pergunta consegue ver e comentar.
+                  {isCreator
+                    ? "Você criou esta pergunta, então acompanha a conversa. Só quem já respondeu vê isto aqui."
+                    : "Só quem respondeu esta pergunta consegue ver e comentar."}
                 </p>
               </div>
 
