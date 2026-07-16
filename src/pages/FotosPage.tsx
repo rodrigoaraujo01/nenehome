@@ -5,7 +5,7 @@ import { Header } from "@/components/Header";
 import { PhotoCard } from "@/components/PhotoCard";
 import { ChallengeCard } from "@/components/ChallengeCard";
 import { useAuth } from "@/hooks/useAuth";
-import { getPhotoSubmissions, getChallenges } from "@/lib/supabase/queries";
+import { getPhotoSubmissions, getChallenges, getOpenBestVotes, type OpenBestVote } from "@/lib/supabase/queries";
 import type { DbPhotoSubmission, DbPhotoChallenge } from "@/lib/types";
 
 type Tab = "missions" | "vote" | "gallery" | "mine";
@@ -117,6 +117,7 @@ export default function FotosPage() {
   const navigate = useNavigate();
   const [submissions, setSubmissions] = useState<DbPhotoSubmission[]>([]);
   const [challenges, setChallenges] = useState<DbPhotoChallenge[]>([]);
+  const [openBestVotes, setOpenBestVotes] = useState<OpenBestVote[]>([]);
   const [fetching, setFetching] = useState(true);
   const [activeTab, setActiveTab] = useState<Tab>("missions");
 
@@ -129,9 +130,11 @@ export default function FotosPage() {
     Promise.all([
       getPhotoSubmissions(profile.id),
       getChallenges(profile.id),
-    ]).then(([s, c]) => {
+      getOpenBestVotes(profile.id),
+    ]).then(([s, c, b]) => {
       setSubmissions(s);
       setChallenges(c);
+      setOpenBestVotes(b);
       setFetching(false);
     });
   }, [profile]);
@@ -232,6 +235,34 @@ export default function FotosPage() {
                   <span className="inline-flex items-center gap-1 text-sm bg-background/15 rounded-full px-3 py-1">
                     Votar agora <ArrowIcon />
                   </span>
+                </Link>
+              )}
+
+              {openBestVotes.length > 0 && (
+                <Link
+                  to={
+                    openBestVotes.length === 1
+                      ? `/fotos/desafios/${openBestVotes[0].challenge_id}`
+                      : "/fotos/desafios"
+                  }
+                  className="flex items-center justify-between gap-3 bg-yellow-500/10 border border-yellow-500/40 hover:border-yellow-500/70 px-5 py-4 rounded-2xl transition-colors"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <span className="text-2xl shrink-0">🏅</span>
+                    <div className="min-w-0">
+                      <p className="font-bold text-yellow-200 leading-tight">
+                        {openBestVotes.length === 1
+                          ? "Eleja a melhor foto"
+                          : `${openBestVotes.length} votações de melhor foto abertas`}
+                      </p>
+                      <p className="text-xs text-muted mt-0.5 truncate">
+                        {openBestVotes.length === 1
+                          ? `${openBestVotes[0].title} · pontos dobrados pra vencedora`
+                          : "Vote antes que fechem — a vencedora dobra os pontos"}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-yellow-400 text-xl shrink-0">›</span>
                 </Link>
               )}
 

@@ -394,6 +394,59 @@ export async function settleExpiredChallengeBests(): Promise<{ settled: number }
   return data as { settled: number };
 }
 
+// Desafios cuja janela de melhor foto (deadline → deadline+48h) está aberta e
+// em que o usuário ainda pode votar: 2+ fotos aprovadas e ele ainda não votou.
+// Mesma lógica do nudge da Home (getNudgeCounts), mas retorna detalhes para o
+// callout da aba Fotos.
+export interface OpenBestVote {
+  challenge_id: string;
+  title: string;
+  closes_at: string; // deadline + 48h
+}
+
+export async function getOpenBestVotes(userId: string): Promise<OpenBestVote[]> {
+  const sb = getSupabase();
+  const now = new Date().toISOString();
+  const windowStart = new Date(Date.now() - 48 * 60 * 60 * 1000).toISOString();
+
+  const [challengesRes, approvedRes, myVotesRes] = await Promise.all([
+    sb
+      .from("photo_challenges")
+      .select("id, title, deadline")
+      .is("best_settled_at", null)
+      .lte("deadline", now)
+      .gt("deadline", windowStart),
+    sb
+      .from("photo_submissions")
+      .select("challenge_id")
+      .eq("status", "approved")
+      .not("challenge_id", "is", null),
+    sb.from("challenge_best_votes").select("challenge_id").eq("voter_id", userId),
+  ]);
+
+  const approvedPerChallenge = new Map<string, number>();
+  for (const s of approvedRes.data ?? []) {
+    if (!s.challenge_id) continue;
+    approvedPerChallenge.set(
+      s.challenge_id,
+      (approvedPerChallenge.get(s.challenge_id) ?? 0) + 1,
+    );
+  }
+  const votedIds = new Set((myVotesRes.data ?? []).map((v) => v.challenge_id));
+
+  return (challengesRes.data ?? [])
+    .filter(
+      (c) => (approvedPerChallenge.get(c.id) ?? 0) >= 2 && !votedIds.has(c.id),
+    )
+    .map((c) => ({
+      challenge_id: c.id,
+      title: c.title,
+      closes_at: new Date(
+        new Date(c.deadline).getTime() + 48 * 60 * 60 * 1000,
+      ).toISOString(),
+    }));
+}
+
 // ─── Settle a photo challenge after its deadline (idempotent, lazy) ──────────
 export async function settleChallenge(
   challengeId: string,
