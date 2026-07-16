@@ -62,6 +62,10 @@ export interface QuestionAnswer {
   nickname: string;
   avatar_url: string | null;
   points_earned: number;
+  // Preenchidos só quando o respondente caiu numa Sabotagem (decoy escolhida):
+  // o texto da alternativa falsa e o apelido de quem a plantou.
+  sabotage_decoy_text: string | null;
+  saboteur_nickname: string | null;
 }
 
 export interface QuestionComment {

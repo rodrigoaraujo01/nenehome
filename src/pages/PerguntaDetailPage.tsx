@@ -664,10 +664,19 @@ export default function PerguntaPage() {
                       nickname={ans.nickname}
                       size={28}
                     />
-                    <span className="text-sm font-semibold flex-1">{ans.nickname}</span>
-                    <span className="text-xs text-muted">
-                      {question.type === "multiple_choice" && selectedOption
-                        ? selectedOption.text
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-semibold">{ans.nickname}</span>
+                      {ans.sabotage_decoy_text && (
+                        <span className="block text-[10px] text-red-400 truncate">
+                          🎯 sabotado por {ans.saboteur_nickname}
+                        </span>
+                      )}
+                    </div>
+                    <span className="text-xs text-muted text-right max-w-[45%] truncate">
+                      {question.type === "multiple_choice"
+                        ? selectedOption
+                          ? selectedOption.text
+                          : ans.sabotage_decoy_text ?? "—"
                         : guessedMember
                         ? guessedMember.nickname
                         : "—"}
