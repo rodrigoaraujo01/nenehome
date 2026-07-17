@@ -41,6 +41,8 @@ import type {
   MySabotage,
   QuestionComment,
   ChallengeBestState,
+  RobinHoodState,
+  RobinHoodCommitResult,
 } from "@/lib/types";
 import { MEMBERS } from "@/lib/constants";
 
@@ -1595,6 +1597,31 @@ export async function getWcDistribution(
   });
   if (error || !data) return null;
   return data as WcDistribution;
+}
+
+// ─── Robin Hood (revanche coletiva) ────────────────────────────────────────
+
+export async function getRobinHoodState(): Promise<RobinHoodState | null> {
+  const { data, error } = await getSupabase().rpc("get_robin_hood_state");
+  if (error || !data) return null;
+  return data as RobinHoodState;
+}
+
+// Entra na revanche aberta (ou abre uma). Dispara quando junta o quórum.
+export async function commitRobinHoodRaid(): Promise<RobinHoodCommitResult> {
+  const { data, error } = await getSupabase().rpc("commit_robin_hood_raid");
+  if (error) return { error: error.message };
+  return data as RobinHoodCommitResult;
+}
+
+// Expira revanches que venceram sem juntar o quórum (idempotente, lazy).
+export async function settleExpiredRobinHoodRaids(): Promise<{ expired: number }> {
+  const { data, error } = await getSupabase().rpc("settle_expired_robin_hood_raids");
+  if (error) {
+    console.error("settleExpiredRobinHoodRaids error:", error);
+    return { expired: 0 };
+  }
+  return data as { expired: number };
 }
 
 export async function getAdultProfiles(): Promise<

@@ -18,12 +18,16 @@ import {
   buyCosmetic,
   equipCosmetic,
   unequipSlot,
+  getRobinHoodState,
+  commitRobinHoodRaid,
 } from "@/lib/supabase/queries";
 import type {
   Powerup,
   NenecoinBalance,
   Cosmetic,
   CosmeticSlot,
+  RobinHoodState,
+  RobinHoodResult,
 } from "@/lib/types";
 
 type Tab = "poderes" | "cosmeticos";
@@ -58,6 +62,7 @@ export default function LojaPage() {
   const [balance, setBalance] = useState<NenecoinBalance | null>(null);
   const [revengeCredits, setRevengeCredits] = useState(0);
   const [qty, setQty] = useState<Record<string, number>>({});
+  const [rhState, setRhState] = useState<RobinHoodState | null>(null);
 
   const [cosmetics, setCosmetics] = useState<Cosmetic[]>([]);
   const [owned, setOwned] = useState<Record<string, boolean>>({});
@@ -72,18 +77,20 @@ export default function LojaPage() {
   }, [loading, profile, navigate]);
 
   async function refresh() {
-    const [pw, inv, bal, rev, cos, cinv] = await Promise.all([
+    const [pw, inv, bal, rev, cos, cinv, rh] = await Promise.all([
       getPowerups(),
       getPowerupInventory(),
       getNenecoinBalance(),
       getSabotageRevenge(),
       getCosmetics(),
       getCosmeticInventory(),
+      getRobinHoodState(),
     ]);
     setPowerups(pw);
     setInventory(Object.fromEntries(inv.map((i) => [i.powerup_key, i.qty])));
     setBalance(bal);
     setRevengeCredits(rev.credits);
+    setRhState(rh);
     setCosmetics(cos);
     setOwned(Object.fromEntries(cinv.map((i) => [i.cosmetic_key, true])));
     setEquipped(
@@ -118,6 +125,25 @@ export default function LojaPage() {
     }
     setToast({ msg: `Comprou ${n}× ${pw.title} ${pw.icon}`, ok: true });
     setItemQty(pw.key, 1);
+    await refresh();
+  }
+
+  async function handleRobinHood() {
+    setBusy("robin_hood_raid");
+    const res = await commitRobinHoodRaid();
+    setBusy(null);
+    if (res.error) {
+      setToast({ msg: res.error, ok: false });
+      return;
+    }
+    if (res.fired) {
+      setToast({ msg: `Revanche disparou! ${res.result?.pool ?? 0} 🪙 redistribuídos 🏹`, ok: true });
+    } else if (res.opened) {
+      setToast({ msg: "Revanche aberta — chame a galera! 🏹", ok: true });
+    } else {
+      const faltam = (res.quorum ?? 4) - (res.count ?? 0);
+      setToast({ msg: `Você entrou! Faltam ${faltam} 🏹`, ok: true });
+    }
     await refresh();
   }
 
@@ -196,6 +222,13 @@ export default function LojaPage() {
 
         {tab === "poderes" && (
           <div className="space-y-3">
+            {rhState && (
+              <RobinHoodPanel
+                state={rhState}
+                busy={busy === "robin_hood_raid"}
+                onCommit={handleRobinHood}
+              />
+            )}
             {powerups.map((pw) => {
               const owned = inventory[pw.key] ?? 0;
               const n = qty[pw.key] ?? 1;
@@ -351,6 +384,135 @@ export default function LojaPage() {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+function hoursUntil(iso: string): string {
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return "expirando…";
+  const h = Math.floor(ms / 3_600_000);
+  const m = Math.floor((ms % 3_600_000) / 60_000);
+  return h > 0 ? `${h}h${m > 0 ? ` ${m}min` : ""}` : `${m}min`;
+}
+
+function RobinHoodResultCard({ result }: { result: RobinHoodResult }) {
+  return (
+    <div className="rounded-xl bg-black/20 border border-border p-3 space-y-2">
+      <p className="text-xs font-bold uppercase tracking-wider text-muted">
+        Última revanche · média {result.avg} 🪙 · {result.pool} 🪙 redistribuídos
+      </p>
+      {result.taxed.length > 0 && (
+        <div className="text-xs">
+          <span className="text-red-400 font-semibold">Tirou dos ricos:</span>{" "}
+          {result.taxed.map((t) => `${t.nick} −${t.amount}`).join(" · ")}
+        </div>
+      )}
+      {result.paid.length > 0 && (
+        <div className="text-xs">
+          <span className="text-green font-semibold">Deu aos pobres:</span>{" "}
+          {result.paid.map((t) => `${t.nick} +${t.amount}`).join(" · ")}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RobinHoodPanel({
+  state,
+  busy,
+  onCommit,
+}: {
+  state: RobinHoodState;
+  busy: boolean;
+  onCommit: () => void;
+}) {
+  const { raid, quorum, my_tokens, week_locked, last_result } = state;
+  const count = raid?.count ?? 0;
+  const faltam = Math.max(0, quorum - count);
+
+  // Pode agir? Precisa de token e ou não entrou no raid, ou não existe raid.
+  const canJoin = my_tokens >= 1 && (!raid || !raid.i_joined);
+  const blockedNewByWeek = !raid && week_locked;
+
+  return (
+    <div className="rounded-2xl p-4 space-y-3 border border-amber-500/40 bg-gradient-to-br from-amber-500/10 to-green/5">
+      <div className="flex items-start gap-3">
+        <div className="text-3xl leading-none">🏹</div>
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap">
+            <p className="font-semibold">Robin Hood — Revanche</p>
+            {my_tokens > 0 && (
+              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-green/15 text-green">
+                {my_tokens} token{my_tokens > 1 ? "s" : ""}
+              </span>
+            )}
+          </div>
+          <p className="text-xs text-muted mt-1 leading-snug">
+            Junte {quorum} membros e tire 25% da fortuna de quem está acima da média
+            do grupo pra dividir com quem está abaixo. 1 token por participante ·
+            1 revanche por semana.
+          </p>
+        </div>
+      </div>
+
+      {raid && (
+        <div className="rounded-xl bg-black/20 border border-border p-3 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-sm font-bold">
+              {count}/{quorum} na revanche
+            </span>
+            <span className="text-xs text-muted">expira em {hoursUntil(raid.expires_at)}</span>
+          </div>
+          <div className="flex flex-wrap gap-1.5">
+            {raid.participants.map((nick) => (
+              <span
+                key={nick}
+                className="text-xs px-2 py-0.5 rounded-full bg-surface-light text-foreground"
+              >
+                {nick}
+              </span>
+            ))}
+            {Array.from({ length: faltam }).map((_, i) => (
+              <span
+                key={i}
+                className="text-xs px-2 py-0.5 rounded-full border border-dashed border-border text-muted"
+              >
+                ?
+              </span>
+            ))}
+          </div>
+          {raid.i_joined && faltam > 0 && (
+            <p className="text-xs text-accent">
+              Você já está dentro — chame mais {faltam} pra disparar!
+            </p>
+          )}
+        </div>
+      )}
+
+      {!raid && last_result && <RobinHoodResultCard result={last_result} />}
+
+      {blockedNewByWeek ? (
+        <p className="text-xs text-muted text-center py-1">
+          Já rolou uma revanche esta semana. Semana que vem tem mais. 🏹
+        </p>
+      ) : (
+        <Button
+          onClick={onCommit}
+          disabled={!canJoin || busy}
+          className={`w-full ${!canJoin ? "opacity-50 cursor-not-allowed" : ""}`}
+        >
+          {busy
+            ? "…"
+            : my_tokens < 1
+              ? "Compre um token 🏹 abaixo"
+              : raid
+                ? raid.i_joined
+                  ? "Você já está na revanche"
+                  : "Entrar na revanche · 1 🏹"
+                : "Abrir revanche · 1 🏹"}
+        </Button>
+      )}
     </div>
   );
 }

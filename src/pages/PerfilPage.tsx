@@ -53,6 +53,8 @@ const TX_LABELS: Record<string, string> = {
   question_bet_placed:  "Aposta em pergunta",
   question_bet_won:     "Aposta em pergunta ganha",
   cosmetic_purchase:    "Cosmético comprado",
+  robin_hood_taxed:     "Robin Hood (taxado)",
+  robin_hood_payout:    "Robin Hood (redistribuição)",
 };
 
 function NenecoinHistory({ entries }: { entries: NenecoinLedgerEntry[] }) {

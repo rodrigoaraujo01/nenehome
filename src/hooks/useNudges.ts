@@ -1,5 +1,10 @@
 import { useEffect, useState } from "react";
-import { getNudgeCounts, type NudgeCounts } from "@/lib/supabase/queries";
+import {
+  getNudgeCounts,
+  getRobinHoodState,
+  type NudgeCounts,
+} from "@/lib/supabase/queries";
+import type { RobinHoodState } from "@/lib/types";
 
 export interface Nudge {
   emoji: string;
@@ -9,8 +14,18 @@ export interface Nudge {
 
 const MAX_NUDGES = 3;
 
-function buildNudges(counts: NudgeCounts): Nudge[] {
+function buildNudges(counts: NudgeCounts, rh: RobinHoodState | null): Nudge[] {
   const nudges: Nudge[] = [];
+
+  // Revanche Robin Hood: janela curta (24h) e rara — mostra na frente enquanto
+  // houver lobby aberto que o membro ainda não entrou.
+  if (rh?.raid && !rh.raid.i_joined) {
+    nudges.push({
+      emoji: "🏹",
+      text: `Revanche Robin Hood aberta (${rh.raid.count}/${rh.quorum})`,
+      to: "/loja",
+    });
+  }
 
   if (counts.unansweredQuestions > 0) {
     const n = counts.unansweredQuestions;
@@ -75,8 +90,8 @@ export function useNudges(userId: string | undefined) {
 
   useEffect(() => {
     if (!userId) return;
-    getNudgeCounts(userId)
-      .then((counts) => setNudges(buildNudges(counts)))
+    Promise.all([getNudgeCounts(userId), getRobinHoodState()])
+      .then(([counts, rh]) => setNudges(buildNudges(counts, rh)))
       .finally(() => setLoading(false));
   }, [userId]);
 

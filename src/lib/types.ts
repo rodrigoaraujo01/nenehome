@@ -145,6 +145,47 @@ export interface BuyPowerupResult {
   error?: string;
 }
 
+// ─── Robin Hood (revanche coletiva) ─────────────────────────────────────────
+export interface RobinHoodShare {
+  nick: string;
+  amount: number;
+}
+
+export interface RobinHoodResult {
+  pool: number;
+  avg: number;
+  taxed: RobinHoodShare[];
+  paid: RobinHoodShare[];
+  fired_at?: string;
+}
+
+export interface RobinHoodRaid {
+  id: string;
+  initiator: string;
+  expires_at: string;
+  count: number;
+  participants: string[];
+  i_joined: boolean;
+}
+
+export interface RobinHoodState {
+  quorum: number;
+  my_tokens: number;
+  week_locked: boolean;
+  raid: RobinHoodRaid | null;
+  last_result: RobinHoodResult | null;
+}
+
+export interface RobinHoodCommitResult {
+  error?: string;
+  opened?: boolean;
+  joined?: boolean;
+  fired?: boolean;
+  count?: number;
+  quorum?: number;
+  result?: RobinHoodResult;
+}
+
 // ─── Cosméticos (loja) ──────────────────────────────────────────────────────
 export type CosmeticSlot = "avatar_frame" | "name_style" | "question_flair";
 export type CosmeticRarity = "comum" | "raro" | "lendario";
