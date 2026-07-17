@@ -258,8 +258,10 @@ export interface SabotageRevenge {
 }
 
 export interface MySabotage {
+  id: string;
   saboteur: string;
   hit: boolean;
+  decoy_text: string;
 }
 
 export interface EliminateResult {

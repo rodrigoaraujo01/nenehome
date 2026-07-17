@@ -167,8 +167,12 @@ export default function PerguntaPage() {
   const isCreator = profile.id === question.creator_id;
   const alreadyAnswered = !!question.my_answer;
   const isCorrect = question.my_answer?.is_correct ?? result?.is_correct;
-  const displaySelectedOptionId =
-    question.my_answer?.selected_option_id ?? selectedOptionId;
+  // Quem caiu na Sabotagem tem selected_option_id null — a escolha real foi a
+  // decoy (reinjetada nas options pós-resposta), então destacamos ela.
+  const decoyOptionId = question.options?.find((o) => o.is_decoy)?.id ?? null;
+  const displaySelectedOptionId = question.my_answer
+    ? question.my_answer.selected_option_id ?? decoyOptionId
+    : selectedOptionId;
   const displaySelectedSubjectId =
     question.my_answer?.subject_guess_id ?? selectedSubjectId;
 

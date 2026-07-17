@@ -221,19 +221,31 @@ export async function getQuestion(
     (a: { position: number }, b: { position: number }) => a.position - b.position
   );
 
-  // Sabotagem: injeta a 5ª alternativa-decoy se houver uma mirando este usuário
-  // (entregue via RPC pra não vazar que é falsa; só aparece antes de responder).
-  if (question.type === "multiple_choice" && !myAnswer) {
-    const { data: sab } = await sb.rpc("get_question_sabotage", {
-      p_question_id: id,
-    });
-    if (sab && sab.id) {
+  // Sabotagem: injeta a 5ª alternativa-decoy se houver uma mirando este usuário.
+  // Antes de responder: via get_question_sabotage (não vaza que é falsa).
+  // Depois de responder: via get_my_sabotage (já revelada no banner), para o
+  // reveal mostrar as mesmas 5 opções que a vítima viu — a decoy marcada em
+  // vermelho se foi a escolhida (my_answer.selected_option_id fica null).
+  if (question.type === "multiple_choice") {
+    let decoy: { id: string; text: string } | null = null;
+    if (!myAnswer) {
+      const { data: sab } = await sb.rpc("get_question_sabotage", {
+        p_question_id: id,
+      });
+      if (sab && sab.id) decoy = { id: sab.id, text: sab.text };
+    } else {
+      const { data: sab } = await sb.rpc("get_my_sabotage", {
+        p_question_id: id,
+      });
+      if (sab && sab.id) decoy = { id: sab.id, text: sab.decoy_text };
+    }
+    if (decoy) {
       options = [
         ...options,
         {
-          id: sab.id as string,
+          id: decoy.id,
           question_id: id,
-          text: sab.text as string,
+          text: decoy.text,
           is_correct: false,
           position: 99,
           is_decoy: true,
@@ -245,7 +257,8 @@ export async function getQuestion(
   // Embaralha as alternativas de MC de forma estável por usuário+pergunta, para
   // que a decoy da Sabotagem não fique sempre na última posição. A correção é
   // rastreada por is_correct / is_decoy (nunca por posição), então é seguro.
-  // Seed sem decoy garante mesma ordem na resposta e no reveal pós-resposta.
+  // Como a decoy é injetada antes e depois de responder, a ordem do reveal
+  // é a mesma que a vítima viu ao responder.
   if (question.type === "multiple_choice") {
     options = shuffleSeeded(options, `${id}:${userId}`);
   }
