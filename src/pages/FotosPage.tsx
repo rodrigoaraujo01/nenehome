@@ -6,6 +6,7 @@ import { PhotoCard } from "@/components/PhotoCard";
 import { ChallengeCard } from "@/components/ChallengeCard";
 import { useAuth } from "@/hooks/useAuth";
 import { getPhotoSubmissions, getChallenges, getOpenBestVotes, type OpenBestVote } from "@/lib/supabase/queries";
+import { isBestVoteOpen } from "@/lib/challenges";
 import type { DbPhotoSubmission, DbPhotoChallenge } from "@/lib/types";
 
 type Tab = "missions" | "vote" | "gallery" | "mine";
@@ -149,6 +150,7 @@ export default function FotosPage() {
 
   const pending = submissions.filter((s) => s.status === "pending");
   const approved = submissions.filter((s) => s.status === "approved");
+  const winners = approved.filter((s) => s.best_photo);
   const rejected = submissions.filter((s) => s.status === "rejected");
   const myPhotos = submissions.filter((s) => s.submitter_id === profile.id);
   const myPending = myPhotos.filter((s) => s.status === "pending");
@@ -163,7 +165,10 @@ export default function FotosPage() {
   const activeChallenges = sortMissions(
     challenges.filter((c) => new Date(c.deadline) >= now),
   );
-  const expiredChallenges = challenges.filter((c) => new Date(c.deadline) < now);
+  const votingChallenges = challenges.filter(isBestVoteOpen);
+  const expiredChallenges = challenges.filter(
+    (c) => new Date(c.deadline) < now && !isBestVoteOpen(c),
+  );
   const completedChallenges = challenges.filter((c) => c.my_completion);
   const openForMe = activeChallenges.filter((c) => !c.my_completion);
 
@@ -314,6 +319,23 @@ export default function FotosPage() {
                 <>
                   {activeTab === "missions" && (
                     <section className="space-y-6">
+                      {votingChallenges.length > 0 && (
+                        <div>
+                          <h3 className="text-xs font-bold text-yellow-400 uppercase tracking-wider mb-3">
+                            🏅 Elegendo melhor foto ({votingChallenges.length})
+                          </h3>
+                          <div className="space-y-3">
+                            {votingChallenges.map((c) => (
+                              <ChallengeCard
+                                key={c.id}
+                                challenge={c}
+                                variant="mission"
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {activeChallenges.length > 0 ? (
                         <div className="space-y-3">
                           {activeChallenges.map((c) => (
@@ -393,6 +415,24 @@ export default function FotosPage() {
 
                   {activeTab === "gallery" && (
                     <section className="space-y-6">
+                      {winners.length > 0 && (
+                        <div>
+                          <h3 className="text-xs font-bold text-yellow-400 uppercase tracking-wider mb-3">
+                            🏆 Melhores fotos ({winners.length})
+                          </h3>
+                          <div className="grid grid-cols-2 gap-3">
+                            {winners.map((s) => (
+                              <PhotoCard
+                                key={s.id}
+                                submission={s}
+                                currentUserId={profile.id}
+                                variant="gallery"
+                              />
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
                       {approved.length > 0 ? (
                         <div className="grid grid-cols-2 gap-3">
                           {approved.map((s) => (

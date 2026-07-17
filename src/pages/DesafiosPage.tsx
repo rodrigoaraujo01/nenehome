@@ -6,6 +6,7 @@ import { Header } from "@/components/Header";
 import { ChallengeCard } from "@/components/ChallengeCard";
 import { useAuth } from "@/hooks/useAuth";
 import { getChallenges } from "@/lib/supabase/queries";
+import { isBestVoteOpen } from "@/lib/challenges";
 import type { DbPhotoChallenge } from "@/lib/types";
 
 export default function DesafiosPage() {
@@ -35,8 +36,11 @@ export default function DesafiosPage() {
   }
 
   const now = new Date();
+  const voting = challenges.filter(isBestVoteOpen);
   const active = challenges.filter((c) => new Date(c.deadline) >= now);
-  const expired = challenges.filter((c) => new Date(c.deadline) < now);
+  const expired = challenges.filter(
+    (c) => new Date(c.deadline) < now && !isBestVoteOpen(c),
+  );
 
   return (
     <>
@@ -80,6 +84,19 @@ export default function DesafiosPage() {
             </div>
           ) : (
             <div className="space-y-8">
+              {voting.length > 0 && (
+                <section>
+                  <h3 className="text-xs font-bold text-yellow-400 uppercase tracking-wider mb-3">
+                    🏅 Elegendo melhor foto ({voting.length})
+                  </h3>
+                  <div className="space-y-3">
+                    {voting.map((c) => (
+                      <ChallengeCard key={c.id} challenge={c} />
+                    ))}
+                  </div>
+                </section>
+              )}
+
               {active.length > 0 && (
                 <section>
                   <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">

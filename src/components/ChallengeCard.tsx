@@ -2,6 +2,7 @@
 import { Link } from "react-router-dom";
 import { Avatar } from "./Avatar";
 import { ADULTS } from "@/lib/constants";
+import { bestVoteClosesAt, isBestVoteOpen } from "@/lib/challenges";
 import type { DbPhotoChallenge } from "@/lib/types";
 
 interface ChallengeCardProps {
@@ -56,6 +57,7 @@ function CameraIcon() {
 
 export function ChallengeCard({ challenge, variant = "mission" }: ChallengeCardProps) {
   const isExpired = new Date(challenge.deadline) < new Date();
+  const bestVoteOpen = isBestVoteOpen(challenge);
   const isCompleted = !!challenge.my_completion;
   const completionCount = challenge.completion_count ?? 0;
   const completionProgress =
@@ -64,6 +66,12 @@ export function ChallengeCard({ challenge, variant = "mission" }: ChallengeCardP
   const creatorReward = 8 + 3 * Math.min(completionCount, 8);
 
   const status = (() => {
+    if (bestVoteOpen) {
+      return {
+        label: "Votação 🏅",
+        cls: "bg-yellow-400/15 text-yellow-400",
+      };
+    }
     if (isExpired) {
       return {
         label: "Expirado",
@@ -90,10 +98,12 @@ export function ChallengeCard({ challenge, variant = "mission" }: ChallengeCardP
 
   const cardClass = [
     "bg-surface border rounded-2xl p-5 transition-colors",
-    !isExpired && !isCompleted && variant === "mission"
+    bestVoteOpen
+      ? "border-yellow-400/50 hover:border-yellow-400"
+      : !isExpired && !isCompleted && variant === "mission"
       ? "border-accent/35 hover:border-accent"
       : "border-border hover:border-accent/40",
-    variant === "archive" ? "opacity-80" : "",
+    variant === "archive" && !bestVoteOpen ? "opacity-80" : "",
   ].join(" ");
 
   return (
@@ -158,10 +168,21 @@ export function ChallengeCard({ challenge, variant = "mission" }: ChallengeCardP
 
         <div className="mt-3 pt-3 border-t border-border flex items-center justify-between">
           <div className="flex items-center gap-1.5 text-xs text-muted">
-            <span>📅</span>
-            <span>
-              {isExpired ? `Encerrou ${formatDeadline(challenge.deadline)}` : getTimeLeft(challenge.deadline)}
-            </span>
+            {bestVoteOpen ? (
+              <>
+                <span>🏅</span>
+                <span className="text-yellow-400 font-semibold">
+                  Elege melhor foto · {getTimeLeft(bestVoteClosesAt(challenge).toISOString())}
+                </span>
+              </>
+            ) : (
+              <>
+                <span>📅</span>
+                <span>
+                  {isExpired ? `Encerrou ${formatDeadline(challenge.deadline)}` : getTimeLeft(challenge.deadline)}
+                </span>
+              </>
+            )}
           </div>
           <div className="flex items-center gap-1.5">
             {completionCount > 0 && challenge.completions && (

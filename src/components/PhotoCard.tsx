@@ -59,7 +59,9 @@ export function PhotoCard({
   const progress = Math.min((approveCount / threshold) * 100, 100);
   const cardClass = [
     "bg-surface border rounded-2xl overflow-hidden transition-colors",
-    canVote && isVoteVariant
+    submission.best_photo
+      ? "border-yellow-400/50 hover:border-yellow-400"
+      : canVote && isVoteVariant
       ? "border-accent/40 hover:border-accent"
       : "border-border hover:border-accent/40",
   ].join(" ");
@@ -90,10 +92,16 @@ export function PhotoCard({
           >
             {STATUS_LABEL[submission.status]}
           </span>
-          {submission.challenge_id && (
-            <span className="absolute top-3 left-3 text-xs font-bold px-2 py-1 rounded-full bg-accent/20 text-accent">
-              🎯
+          {submission.best_photo ? (
+            <span className="absolute top-3 left-3 inline-flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full bg-yellow-400 text-background">
+              🏆 Melhor foto
             </span>
+          ) : (
+            submission.challenge_id && (
+              <span className="absolute top-3 left-3 text-xs font-bold px-2 py-1 rounded-full bg-accent/20 text-accent">
+                🎯
+              </span>
+            )
           )}
           {canVote && isVoteVariant && (
             <span className="absolute bottom-3 left-3 inline-flex items-center gap-1 text-xs font-bold px-2 py-1 rounded-full bg-accent text-background">

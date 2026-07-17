@@ -627,16 +627,32 @@ export async function getChallenges(
 ): Promise<DbPhotoChallenge[]> {
   const sb = getSupabase();
 
-  const { data, error } = await sb
-    .from("photo_challenges")
-    .select(`
-      *,
-      creator:profiles!creator_id(id, nickname, avatar_url),
-      completions:photo_challenge_completions(id, user_id, completed_at, user:profiles!user_id(id, nickname, avatar_url))
-    `)
-    .order("deadline", { ascending: true });
+  const [{ data, error }, approvedRes] = await Promise.all([
+    sb
+      .from("photo_challenges")
+      .select(`
+        *,
+        creator:profiles!creator_id(id, nickname, avatar_url),
+        completions:photo_challenge_completions(id, user_id, completed_at, user:profiles!user_id(id, nickname, avatar_url))
+      `)
+      .order("deadline", { ascending: true }),
+    sb
+      .from("photo_submissions")
+      .select("challenge_id")
+      .eq("status", "approved")
+      .not("challenge_id", "is", null),
+  ]);
 
   if (error || !data) return [];
+
+  const approvedPerChallenge = new Map<string, number>();
+  for (const s of approvedRes.data ?? []) {
+    if (!s.challenge_id) continue;
+    approvedPerChallenge.set(
+      s.challenge_id,
+      (approvedPerChallenge.get(s.challenge_id) ?? 0) + 1,
+    );
+  }
 
   return data.map((c) => {
     const completions = (c.completions ?? []) as DbPhotoChallenge["completions"];
@@ -645,6 +661,7 @@ export async function getChallenges(
       ...c,
       completions,
       completion_count: completions?.length ?? 0,
+      approved_count: approvedPerChallenge.get(c.id) ?? 0,
       my_completion: myCompletion,
     };
   }) as DbPhotoChallenge[];

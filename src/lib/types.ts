@@ -365,6 +365,8 @@ export interface DbPhotoChallenge {
   completions?: DbPhotoChallengeCompletion[];
   submissions?: DbPhotoSubmission[];
   completion_count?: number;
+  // fotos aprovadas do desafio — define se há disputa de melhor foto (2+)
+  approved_count?: number;
   my_completion?: DbPhotoChallengeCompletion | null;
 }
 
